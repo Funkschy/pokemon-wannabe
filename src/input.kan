@@ -1,0 +1,86 @@
+import "sdl";
+
+extern def calloc(size: i32, n: usize): *bool;
+extern def memset(buffer: *bool, value: bool, size: i32): *bool;
+
+type Action enum {
+    Quit,
+    Left,
+    Right,
+    Up,
+    Down
+}
+
+type InputState struct {
+    actions: *bool
+}
+
+def init_input_map(): InputState {
+    return InputState {
+        actions: calloc(Action.len, sizeof bool)
+    };
+}
+
+def (i: *InputState)free() {
+    delete i.actions;
+}
+
+def (i: *InputState) reset_input_map() {
+    memset(i.actions, false, Action.len);
+}
+
+def (i: *InputState) update_input_map(event: sdl.Event) {
+    if event.common.kind == sdl.EventKind.JoyHatMotion {
+        i.reset_input_map();
+
+        if event.hat_event.get_dir() == sdl.Direction.Left {
+            i.set_action_pressed(Action.Left, true);
+        } else if event.hat_event.get_dir() == sdl.Direction.Right {
+            i.set_action_pressed(Action.Right, true);
+        } else if event.hat_event.get_dir() == sdl.Direction.Up {
+            i.set_action_pressed(Action.Up, true);
+        } else if event.hat_event.get_dir() == sdl.Direction.Down {
+            i.set_action_pressed(Action.Down, true);
+        } else if event.hat_event.get_dir() == sdl.Direction.RightUp {
+            i.set_action_pressed(Action.Up, true);
+            i.set_action_pressed(Action.Right, true);
+        } else if event.hat_event.get_dir() == sdl.Direction.RightDown {
+            i.set_action_pressed(Action.Down, true);
+            i.set_action_pressed(Action.Right, true);
+        } else if event.hat_event.get_dir() == sdl.Direction.LeftUp {
+            i.set_action_pressed(Action.Up, true);
+            i.set_action_pressed(Action.Left, true);
+        } else if event.hat_event.get_dir() == sdl.Direction.LeftDown {
+            i.set_action_pressed(Action.Down, true);
+            i.set_action_pressed(Action.Left, true);
+        }
+
+        return;
+    }
+
+    let is_keydown = event.common.kind == sdl.EventKind.KeyDown;
+    if !is_keydown && event.common.kind != sdl.EventKind.KeyUp {
+        return;
+    }
+
+    // escape
+    if event.key_event.keysym.scancode == 41 {
+        i.set_action_pressed(Action.Quit, is_keydown);
+    } else if event.key_event.keysym.sym == 'a' {
+        i.set_action_pressed(Action.Left, is_keydown);
+    } else if event.key_event.keysym.sym == 'd' {
+        i.set_action_pressed(Action.Right, is_keydown);
+    } else if event.key_event.keysym.sym == 'w' {
+        i.set_action_pressed(Action.Up, is_keydown);
+    } else if event.key_event.keysym.sym == 's' {
+        i.set_action_pressed(Action.Down, is_keydown);
+    }
+}
+
+def (i: *InputState) set_action_pressed(action: Action, value: bool) {
+    *(i.actions + *(&action as *i32)) = value;
+}
+
+def (i: *InputState) is_action_pressed(action: Action): bool {
+    return *(i.actions + *(&action as *i32));
+}

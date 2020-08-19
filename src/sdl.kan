@@ -1,0 +1,380 @@
+// SDL_Window
+type Window struct {}
+
+def (w: *Window) destroy() {
+    SDL_DestroyWindow(w);
+}
+
+def (w: *Window) surface(): *Surface {
+    return SDL_GetWindowSurface(w);
+}
+
+def (w: *Window) update_surface(): i32 {
+    return SDL_UpdateWindowSurface(w);
+}
+
+type Rect struct {
+    x: i32,
+    y: i32,
+    w: i32,
+    h: i32
+}
+
+type Point struct {
+    x: i32,
+    y: i32
+}
+
+def point(x: i32, y: i32): Point {
+    return Point {
+        x: x, y: y
+    };
+}
+
+// SDL_Texture
+type Texture struct {}
+
+def (s: *Texture) destroy() {
+    SDL_DestroyTexture(s);
+}
+
+// SDL_Surface
+type Surface struct {
+    flags: i32,
+    format: *void,
+    w: i32,
+    h: i32,
+    pixels: *void,
+    userdata: *void,
+    locked: i32,
+    lock_data: *void,
+    clip_rect: Rect,
+    map: *void,
+    refcount: i32
+}
+
+def (s: *Surface) free() {
+    SDL_FreeSurface(s);
+}
+
+// SDL_Renderer
+type Renderer struct {}
+
+def create_renderer(win: *Window, index: i32, flags: i32): *Renderer {
+    return SDL_CreateRenderer(win, index, flags);
+}
+
+def (r: *Renderer) destroy() {
+    SDL_DestroyRenderer(r);
+}
+
+def (r: *Renderer) clear(): i32 {
+    return SDL_RenderClear(r);
+}
+
+def (r: *Renderer) present() {
+    SDL_RenderPresent(r);
+}
+
+def (render: *Renderer) set_draw_color(r: i32, g: i32, b: i32, a: i32): i32 {
+    return SDL_SetRenderDrawColor(render, r, g, b, a);
+}
+
+def (r: *Renderer) surface_to_texture(s: *Surface): *Texture {
+    return SDL_CreateTextureFromSurface(r, s);
+}
+
+def (r: *Renderer) draw_rect(rect: *Rect): i32 {
+    return SDL_RenderDrawRect(r, rect);
+}
+
+def (r: *Renderer) copy_ex(
+    t: *Texture,
+    src: *Rect,
+    dest: *Rect,
+    angle: f64,
+    center: *Point,
+    flip: RendererFlip
+): i32 {
+    return SDL_RenderCopyEx(r, t, src, dest, angle, center, flip);
+}
+
+type EventKind enum {
+    None,
+    Quit,
+    Window,
+
+    KeyDown,
+    KeyUp,
+    TextEditing,
+    TextInput,
+
+    MouseMotion,
+    MouseButtonDown,
+    MouseButtonUp,
+    MouseWheel,
+
+    JoyAxisMotion,
+    JoyBallMotion,
+    JoyHatMotion,
+    JoyButtonDown,
+    JoyButtonUp,
+    JoyDeviceAdded,
+    JoyDeviceRemoved
+}
+
+def check_event_kind(i: i32, first_val: i32, count: i32, start: EventKind): EventKind {
+    if i >= first_val && i <= first_val + count {
+        let normal = i - first_val + *(&start as *i32);
+        return *(&normal as *EventKind);
+    }
+
+    return EventKind.None;
+}
+
+type CommonEvent struct {
+    kind: EventKind,
+    timestamp: i32
+}
+
+// Event should be 56 bytes wide on all platforms
+type EventPadding struct {
+    a: i64,
+    b: i64,
+    c: i64,
+    d: i64,
+    e: i64,
+    f: i64,
+    g: i64
+}
+
+type WindowEvent struct {
+    common: CommonEvent,
+    windowID: u32,
+    event: u8,
+    data1: i32,
+    data2: i32
+}
+
+type Keysym struct {
+    scancode: u32,
+    sym: u32,
+    mod: u16,
+    unused: u32
+}
+
+type KeyboardEvent struct {
+    common: CommonEvent,
+    windowID: u32,
+    state: u8,
+    repeat: u8,
+    keysym: Keysym
+}
+
+type Direction enum {
+    Centered, Up, Right, Down, Left, RightUp, RightDown, LeftUp, LeftDown
+}
+
+type JoyHatEvent struct {
+    common: CommonEvent,
+    which: i32,
+    hat: u8,
+    value: u8
+}
+
+def (jh: *JoyHatEvent) get_dir(): Direction {
+    if jh.value == 0 {
+        return Direction.Centered;
+    }
+    if jh.value == 1 {
+        return Direction.Up;
+    }
+    if jh.value == 2 {
+        return Direction.Right;
+    }
+    if jh.value == 4 {
+        return Direction.Down;
+    }
+    if jh.value == 8 {
+        return Direction.Left;
+    }
+    if jh.value == (1 | 2) {
+        return Direction.RightUp;
+    }
+    if jh.value == (4 | 2) {
+        return Direction.RightDown;
+    }
+    if jh.value == (1 | 8) {
+        return Direction.LeftUp;
+    }
+    if jh.value == (4 | 8) {
+        return Direction.LeftDown;
+    }
+
+    return Direction.Centered;
+}
+
+// SDL_Event always has a width 56 bytes
+type Event union {
+    common: CommonEvent,
+    window: WindowEvent,
+    key_event: KeyboardEvent,
+    hat_event: JoyHatEvent,
+    padding: EventPadding
+}
+
+def (e: *Event) poll(): i32 {
+    let ret = SDL_PollEvent(e);
+    e.common.kind = translate_event_kind(e);
+
+    return ret;
+}
+
+def translate_event_kind(e: *Event): EventKind {
+    let kind_value = *(&e.common.kind as *i32);
+
+    if kind_value == 256 {
+        return EventKind.Quit;
+    }
+
+    if kind_value == 512 {
+        return EventKind.Window;
+    }
+
+    let kind = check_event_kind(kind_value, 1024, 4, EventKind.MouseMotion);
+    if kind != EventKind.None { return kind; }
+    kind = check_event_kind(kind_value, 768, 4, EventKind.KeyDown);
+    if kind != EventKind.None { return kind; }
+    kind = check_event_kind(kind_value, 1536, 7, EventKind.JoyAxisMotion);
+
+    return kind;
+}
+
+type Joystick struct {}
+
+def num_joysticks(): i32 {
+    return SDL_NumJoysticks();
+}
+
+def open_joystick(index: i32): *Joystick {
+    return SDL_JoystickOpen(index);
+}
+
+def (js: *Joystick) close() {
+    if js != null {
+        SDL_JoystickClose(js);
+    }
+}
+
+let sdl_init_video = 32;
+let sdl_init_joystick = 512;
+
+let sdl_window_centered = 805240832;
+let sdl_window_shown = 4;
+
+let sdl_renderer_presentvsync = 4;
+
+def init_video(): i32 {
+    return sdl_init_video;
+}
+
+def init_joystick(): i32 {
+    return sdl_init_joystick;
+}
+
+def quit() {
+    SDL_Quit();
+}
+
+def window_centered(): i32 {
+    return sdl_window_centered;
+}
+
+def window_shown(): i32 {
+    return sdl_window_shown;
+}
+
+def present_vsync(): i32 {
+    return sdl_renderer_presentvsync;
+}
+
+extern def SDL_Init(flags: i32): i32;
+extern def SDL_GetError(): string;
+extern def SDL_CreateWindow(title: string, x: i32, y: i32, w: u32, h: u32, flags: i32): *Window;
+extern def SDL_PollEvent(e: *Event): i32;
+extern def SDL_RenderClear(r: *Renderer): i32;
+extern def SDL_CreateRenderer(window: *Window, index: i32, flags: i32): *Renderer;
+extern def SDL_SetRenderDrawColor(renderer: *Renderer, r: i32, g: i32, b: i32, a: i32): i32;
+extern def SDL_RenderPresent(renderer: *Renderer);
+extern def SDL_RenderDrawRect(renderer: *Renderer, rect: *Rect): i32;
+extern def SDL_DestroyWindow(win: *Window);
+extern def SDL_DestroyRenderer(r: *Renderer);
+extern def SDL_FreeSurface(s: *Surface);
+extern def SDL_DestroyTexture(s: *Texture);
+extern def SDL_Quit();
+extern def SDL_RWFromFile(filename: string, mod: string): *RwOps;
+extern def SDL_GetWindowSurface(win: *Window): *Surface;
+extern def SDL_UpperBlit(src: *Surface, src_rect: *Rect, dest: *Surface, dest_rect: *Rect): i32;
+extern def SDL_UpdateWindowSurface(win: *Window): i32;
+extern def SDL_CreateTextureFromSurface(r: *Renderer, s: *Surface): *Texture;
+extern def SDL_NumJoysticks(): i32;
+extern def SDL_JoystickOpen(index: i32): *Joystick;
+extern def SDL_JoystickClose(js: *Joystick);
+extern def SDL_JoystickOpened(index: i32): bool;
+extern def SDL_JoystickGetHat(js: *Joystick, hat: i32): i8;
+extern def SDL_GetPerformanceCounter(): i64;
+extern def SDL_GetPerformanceFrequency(): i64;
+
+def delta(last: i64): f64 {
+    let last = last;
+    let now = now();
+    return ((now - last) as f64 * 1000.0) / (SDL_GetPerformanceFrequency() as f64);
+}
+
+def now(): i64 {
+    return SDL_GetPerformanceCounter();
+}
+
+type RendererFlip enum {
+    None, Horizontal, Vertical
+}
+
+extern def SDL_RenderCopyEx(
+    r: *Renderer,
+    t: *Texture,
+    src: *Rect,
+    dest: *Rect,
+    angle: f64,
+    center: *Point,
+    flip: RendererFlip
+): i32;
+
+// SDL_RWops
+type RwOps struct {}
+extern def SDL_LoadBMP_RW(rwops: *RwOps, freesrc: i32): *Surface;
+
+def load_bmp(filename: string): *Surface {
+    return SDL_LoadBMP_RW(SDL_RWFromFile(filename, "rb"), 1);
+}
+
+def init(flags: i32): i32 {
+    return SDL_Init(flags);
+}
+
+def get_error(): string {
+    return SDL_GetError();
+}
+
+def create_window(title: string, x: i32, y: i32, w: u32, h: u32, flags: i32): *Window {
+    return SDL_CreateWindow(title, x, y, w, h, flags);
+}
+
+def blit_surface(src: *Surface, src_rect: *Rect, dest: *Surface, dest_rect: *Rect): i32 {
+    return SDL_UpperBlit(src, src_rect, dest, dest_rect);
+}
+
+// SDL_image
+extern def IMG_LoadPNG_RW(rwops: *RwOps): *Surface;
+def load_png(filename: string): *Surface {
+    return IMG_LoadPNG_RW(SDL_RWFromFile(filename, "rb"));
+}

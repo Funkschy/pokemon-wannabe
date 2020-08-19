@@ -1,0 +1,62 @@
+
+extern def atan2f(y: f32, x: f32): f32;
+extern def sqrtf(x: f32): f32;
+
+type Rad struct {
+    inner: f32
+}
+
+def (r: Rad) to_degree(): Degree {
+    return Degree { inner: r.inner * (180.0 / 3.14159) };
+}
+
+type Degree struct {
+    inner: f32
+}
+
+type Vec2f struct {
+    x: f32,
+    y: f32
+}
+
+def zero_vec2f(): Vec2f {
+    return vec2f(0.0, 0.0);
+}
+
+def vec2f(x: f32, y: f32): Vec2f {
+    return Vec2f { x: x, y: y };
+}
+
+def (v: Vec2f) len_squared(): f32 {
+    return v.x*v.x + v.y*v.y;
+}
+
+def (v: Vec2f) len(): f32 {
+    return sqrtf(v.len_squared());
+}
+
+def (v: Vec2f) dot(other: Vec2f): f32 {
+    return v.x * other.x + v.y * other.y;
+}
+
+def (v: Vec2f) add(other: Vec2f): Vec2f {
+    v.x += other.x;
+    v.y += other.y;
+    return v;
+}
+
+def (v: Vec2f) normalized(): Vec2f {
+    let len = v.len();
+    if len == 0.0 {
+        return zero_vec2f();
+    }
+    return Vec2f { x: v.x / len, y: v.y / len };
+}
+
+def (v: Vec2f) times(scalar: f32): Vec2f {
+    return Vec2f { x: v.x * scalar, y: v.y * scalar };
+}
+
+def (v: Vec2f) angle(): Rad {
+    return Rad { inner: atan2f(v.y, v.x) };
+}

@@ -1,0 +1,134 @@
+import "sdl";
+
+extern def malloc(size: usize): *void;
+
+type SpriteSheetSpec struct {
+    sprite_width: i32,
+    sprite_height: i32,
+    filename: string
+}
+
+def spritesheet_spec(width: i32, height: i32, filename: string): SpriteSheetSpec {
+    return SpriteSheetSpec {
+        sprite_width: width,
+        sprite_height: height,
+        filename: filename
+    };
+}
+
+type SpriteSheet struct {
+    sprite_width: i32,
+    sprite_height: i32,
+    surface: *sdl.Surface,
+    inner: Sprite
+}
+
+def load_spritesheet_from_png(renderer: *sdl.Renderer, spec: SpriteSheetSpec, out: *SpriteSheet): bool {
+    let surface = sdl.load_png(spec.filename);
+    if surface == null {
+        return false;
+    }
+
+    let texture = renderer.surface_to_texture(surface);
+    if texture == null {
+        return false;
+    }
+
+    let rect = sdl.Rect { x: 0, y: 0, w: surface.w, h: surface.h };
+    let inner = Sprite { texture: texture, rect: rect };
+    *out = SpriteSheet {
+        sprite_width: spec.sprite_width,
+        sprite_height: spec.sprite_height,
+        surface: surface,
+        inner: inner
+    };
+
+    return true;
+}
+
+def (ss: *SpriteSheet) count_horizontal(): u32 {
+    return (ss.surface.w / ss.sprite_width) as u32;
+}
+
+def (ss: *SpriteSheet) count_vertical(): u32 {
+    return (ss.surface.h / ss.sprite_height) as u32;
+}
+
+def (ss: *SpriteSheet) get(x: i32, y: i32): Sprite {
+    let rect = sdl.Rect {
+        x: x * ss.sprite_width,
+        y: y * ss.sprite_height,
+        w: ss.sprite_width,
+        h: ss.sprite_height
+    };
+
+    return Sprite { texture: ss.inner.texture, rect: rect };
+}
+
+def (ss: *SpriteSheet) free() {
+    ss.inner.texture.destroy();
+    ss.surface.free();
+}
+
+type Sprite struct {
+    texture: *sdl.Texture,
+    rect: sdl.Rect
+}
+
+def render_sprite(r: *sdl.Renderer, s: *Sprite, dest: sdl.Rect, flip: sdl.RendererFlip) {
+    r.copy_ex(s.texture, &s.rect, &dest, 0.0, null, flip);
+}
+
+def render_sprite_rot(r: *sdl.Renderer, s: *Sprite, dest: sdl.Rect, flip: sdl.RendererFlip, rotation: f64) {
+    r.copy_ex(s.texture, &s.rect, &dest, rotation, null, flip);
+}
+
+type Animation struct {
+    num_sprites: u32,
+    frame_pos: u32,
+    frame_change_time: f32,
+    delta_sum: f32,
+    sprites: *Sprite
+}
+
+def create_animation(spritesheet: *SpriteSheet, sprite_count: u32, start: u32): Animation {
+    let width = spritesheet.count_horizontal();
+    let height = spritesheet.count_vertical();
+
+    let sprites = malloc(sprite_count as usize * sizeof Sprite) as *Sprite;
+
+    for let i = start; i < start + sprite_count; i += 1 {
+        let y = i / width;
+        let x = i - (y * width);
+        *(sprites + i - start) = spritesheet.get(x as i32, y as i32);
+    }
+
+    return Animation {
+        num_sprites: sprite_count,
+        frame_pos: 0,
+        frame_change_time: 128.0,
+        delta_sum: 0.0,
+        sprites: sprites
+    };
+}
+
+// returns true when one cylce is over
+def (a: *Animation) update(delta: f32): bool {
+    let over = false;
+    if (a.delta_sum += delta) > a.frame_change_time {
+        let next_frame_num = a.frame_pos + 1;
+        over = next_frame_num >= a.num_sprites;
+        a.frame_pos = next_frame_num % a.num_sprites;
+        a.delta_sum = 0.0;
+    }
+    return over;
+}
+
+def (a: *Animation) current_sprite(): *Sprite {
+    return a.sprites + a.frame_pos;
+}
+
+def (a: *Animation) free() {
+    delete a.sprites;
+}
+

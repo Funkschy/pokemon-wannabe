@@ -1,0 +1,39 @@
+let g_unit: u32 = 16;
+
+let g_width: u32 = 1920;
+let g_height: u32 = 1080;
+
+let g_width_units: u32 = 0;
+let g_height_units: u32 = 0;
+
+let g_scale: u32 = 6;
+
+def width(): u32 {
+    return g_width;
+}
+
+def height(): u32 {
+    return g_height;
+}
+
+def width_units(): u32 {
+    if g_width_units == 0 {
+        return g_width_units = g_width / g_unit;
+    }
+    return g_width_units;
+}
+
+def height_units(): u32 {
+    if g_height_units == 0 {
+        return g_height_units = g_height / g_unit;
+    }
+    return g_height_units;
+}
+
+def unit(): u32 {
+    return g_unit;
+}
+
+def scale(): u32 {
+    return g_scale;
+}

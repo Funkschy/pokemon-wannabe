@@ -1,0 +1,68 @@
+import "io";
+import "sdl";
+import "config";
+import "input" as i;
+import "player" as p;
+import "graphics" as g;
+
+def main() {
+    let width = config.width();
+    let height = config.height();
+
+    if sdl.init(sdl.init_video() | sdl.init_joystick()) < 0 {
+        io.printf("Could not init SDL: %s\n", sdl.get_error());
+        return;
+    }
+    defer sdl.quit();
+
+    let window = sdl.create_window(
+        "RPG",
+        sdl.window_centered(), sdl.window_centered(),
+        width, height,
+        sdl.window_shown()
+    );
+
+    if window == null {
+        io.printf("Could not init window: %s\n", sdl.get_error());
+        return;
+    }
+    defer window.destroy();
+
+    let renderer = sdl.create_renderer(window, -1, sdl.present_vsync());
+    renderer.set_draw_color(50, 50, 50, 255);
+    defer renderer.destroy();
+
+    let joystick: *sdl.Joystick = null;
+    if sdl.num_joysticks() > 0 && (joystick = sdl.open_joystick(0)) == null {
+        io.printf("Could not open joystick: %s\n", sdl.get_error());
+        return;
+    }
+    defer joystick.close();
+
+    let player = p.load(renderer, width / 2, height / 2);
+    defer player.free();
+    player.current_animation = &player.idle_animation;
+
+    let e: sdl.Event = undefined;
+    let last = sdl.now();
+    let input = i.init_input_map();
+
+    while true {
+        let delta = sdl.delta(last) as f32;
+        last = sdl.now();
+
+        while e.poll() != 0 {
+            if e.common.kind == sdl.EventKind.Quit {
+                return;
+            }
+
+            input.update_input_map(e);
+        }
+
+        player.update(delta, &input);
+
+        renderer.clear();
+        player.render(renderer);
+        renderer.present();
+    }
+}
