@@ -9,13 +9,20 @@ SDL_IMAGE_BUILD_DIR := $(realpath $(SDL_IMAGE_DIR))/build
 SDL_IMAGE_LIB_DIR := $(SDL_IMAGE_BUILD_DIR)/lib
 
 KANTAN = kantan
-KANTAN_FILES = src/config.kan \
+KANTAN_FILES = src/dbg.kan \
+			   src/config.kan \
 			   src/graphics.kan \
-			   src/main.kan \
-			   src/player.kan \
 			   src/input.kan \
+			   src/main.kan \
+			   src/math.kan \
+			   src/npc.kan \
+			   src/physics.kan \
+			   src/player.kan \
+			   src/ptrvec.kan \
 			   src/sdl.kan \
-			   src/math.kan
+			   src/std.kan \
+			   src/str.kan \
+			   src/world.kan
 OBJ = game.o
 
 $(BIN_NAME) : $(KANTAN_FILES)

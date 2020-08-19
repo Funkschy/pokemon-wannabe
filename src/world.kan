@@ -1,0 +1,43 @@
+import "std";
+import "npc";
+import "ptrvec";
+
+type TileState enum {
+    Empty, HasNpc
+}
+
+type Tile struct {
+    kind: TileState,
+    data: *void
+}
+
+type World struct {
+    width_units: u32,
+    tiles: *Tile,
+    npcs: ptrvec.Vec // ptrvec.Vec<*npc.Basic>
+}
+
+def create(width_units: u32, height_units: u32): World {
+    return World {
+        width_units: width_units,
+        tiles: std.calloc((width_units * height_units) as usize, sizeof Tile) as *Tile,
+        npcs: ptrvec.create()
+    };
+}
+
+def (w: *World) free() {
+    delete w.tiles;
+    w.npcs.free();
+}
+
+def (w: *World) add_npc(npc: *npc.Basic) {
+    w.npcs.push_ptr(npc as *void);
+    let npc_rect = npc.tile_rect();
+
+    for let y = npc_rect.y; y < npc_rect.y + npc_rect.h; y += 1 {
+        for let x = npc_rect.x; x < npc_rect.x + npc_rect.w; x += 1 {
+            let idx = y as u32 * w.width_units + x as u32;
+            *(w.tiles + idx) = Tile { kind: TileState.HasNpc, data: null };
+        }
+    }
+}

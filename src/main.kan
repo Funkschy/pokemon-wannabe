@@ -1,22 +1,28 @@
 import "io";
 import "sdl";
+import "npc";
+import "world";
 import "config";
+import "ptrvec";
 import "input" as i;
 import "player" as p;
 import "graphics" as g;
 
 def main() {
-    let width = config.width();
-    let height = config.height();
-
     if sdl.init(sdl.init_video() | sdl.init_joystick()) < 0 {
         io.printf("Could not init SDL: %s\n", sdl.get_error());
         return;
     }
     defer sdl.quit();
 
+    let display_mode = sdl.get_desktop_display_mode();
+    config.set_scale(display_mode.h as u32 / config.pixel_height() / 2);
+
+    let width = config.pixel_width();
+    let height = config.pixel_height();
+
     let window = sdl.create_window(
-        "RPG",
+        "Quasi Pokemon",
         sdl.window_centered(), sdl.window_centered(),
         width, height,
         sdl.window_shown()
@@ -39,9 +45,16 @@ def main() {
     }
     defer joystick.close();
 
+    let world = world.create(config.width(), config.height());
+    defer world.free();
+
     let player = p.load(renderer, width / 2, height / 2);
     defer player.free();
     player.current_animation = &player.idle_animation;
+
+    let npcs = ptrvec.create();
+    let cat = npc.load(renderer, "res/cat.png", 8, width / 3, height / 3);
+    world.add_npc(&cat);
 
     let e: sdl.Event = undefined;
     let last = sdl.now();
@@ -59,9 +72,20 @@ def main() {
             input.update_input_map(e);
         }
 
-        player.update(delta, &input);
+        let old_pos = player.transform.position;
+        player.update(delta, &input, &world);
 
         renderer.clear();
+
+        for let i: usize = 0; i < world.npcs.len; i += 1 {
+            let npc = world.npcs.get(i) as *npc.Basic;
+            npc.update(delta);
+            if player.collides_with(npc.abs_rect()) {
+                player.transform.position = old_pos;
+            }
+            npc.render(renderer);
+        }
+
         player.render(renderer);
         renderer.present();
     }

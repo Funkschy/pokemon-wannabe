@@ -1,24 +1,21 @@
 import "io";
 import "sdl";
 import "math";
+import "world";
 import "config";
+import "physics";
 import "input" as i;
 import "graphics" as g;
 
-type Transform struct {
-    position: math.Vec2f,
-    scale: u32
-}
-
-def (t: *Transform) update_with_vel(velocity: math.Vec2f) {
-    t.position = t.position.add(velocity);
-}
+let interaction_cooldown: i64 = 500000000;
 
 type Player struct {
-    transform: Transform,
+    transform: physics.Transform,
     velocity: math.Vec2f,
     speed: f32,
     flip: sdl.RendererFlip,
+    hitbox: physics.Hitbox,
+    last_interact: i64,
 
     current_animation: *g.Animation,
     idle_animation: g.Animation,
@@ -43,10 +40,13 @@ def load(renderer: *sdl.Renderer, init_x: u32, init_y: u32): Player {
     let initial_pos = math.vec2f(init_x as f32, init_y as f32);
 
     return Player {
-        transform: Transform { position: initial_pos, scale: config.scale() },
+        transform: physics.Transform { position: initial_pos, scale: config.scale() },
         velocity: math.zero_vec2f(),
-        speed: 2.0,
+        speed: 0.5,
         flip: sdl.RendererFlip.None,
+        hitbox: physics.hitbox(0, 0, 16, 16),
+        last_interact: 0,
+
         current_animation: null,
         idle_animation: player_idle,
         run_down_animation: player_run_down,
@@ -74,7 +74,7 @@ def (p: *Player) free() {
     p.spritesheet.free();
 }
 
-def (p: *Player) update(ts: f32, input: *i.InputState) {
+def (p: *Player) update(ts: f32, input: *i.InputState, world: *world.World) {
     p.velocity = math.zero_vec2f();
     p.current_animation.update(ts);
     p.current_animation = &p.idle_animation;
@@ -102,5 +102,19 @@ def (p: *Player) update(ts: f32, input: *i.InputState) {
     }
 
     p.velocity = p.velocity.normalized().times(p.speed);
-    p.transform.update_with_vel(p.velocity);
+    p.transform.update_with_vel(p.velocity, ts);
+
+    let now = sdl.now();
+    if input.is_action_pressed(i.Action.Interact) && now - p.last_interact > interaction_cooldown {
+        p.last_interact = now;
+        io.printf("kek\n");
+    }
+}
+
+def (p: *Player) collides_with(other: sdl.Rect): bool {
+    let hitbox = p.hitbox.as_absolute_rect(p.transform);
+    let is_inside_horizontal = hitbox.is_inside_horizontal(other);
+    let is_inside_vertical = hitbox.is_inside_vertical(other);
+
+    return is_inside_horizontal && is_inside_vertical;
 }

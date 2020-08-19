@@ -1,0 +1,14 @@
+import "io";
+import "std";
+
+def assert(condition: bool, err_text: string): void {
+    if !condition {
+        io.printf("%s\n", err_text);
+        std.abort();
+    }
+}
+
+def not_implemented(): void {
+    io.printf("not implemented\n");
+    std.abort();
+}

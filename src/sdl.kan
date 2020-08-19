@@ -20,6 +20,16 @@ type Rect struct {
     h: i32
 }
 
+def (r: Rect) is_inside_horizontal(other: Rect): bool {
+    return (r.x >= other.x && r.x <= other.x + other.w)
+        || (r.x + r.w >= other.x && r.x + r.w <= other.x + other.w);
+}
+
+def (r: Rect) is_inside_vertical(other: Rect): bool {
+    return (r.y >= other.y && r.y <= other.y + other.h)
+        || (r.y + r.h >= other.y && r.y + r.h <= other.y + other.h);
+}
+
 type Point struct {
     x: i32,
     y: i32
@@ -214,12 +224,21 @@ def (jh: *JoyHatEvent) get_dir(): Direction {
     return Direction.Centered;
 }
 
+type JoyButtonEvent struct {
+    common: CommonEvent,
+    which: i32,
+    button: u8,
+    state: u8,
+    padding: u16
+}
+
 // SDL_Event always has a width 56 bytes
 type Event union {
     common: CommonEvent,
     window: WindowEvent,
     key_event: KeyboardEvent,
     hat_event: JoyHatEvent,
+    joy_button_event: JoyButtonEvent,
     padding: EventPadding
 }
 
@@ -324,6 +343,22 @@ extern def SDL_JoystickOpened(index: i32): bool;
 extern def SDL_JoystickGetHat(js: *Joystick, hat: i32): i8;
 extern def SDL_GetPerformanceCounter(): i64;
 extern def SDL_GetPerformanceFrequency(): i64;
+
+type DisplayMode struct {
+    format: u32, // pixel format
+    w: i32, // width, in screen coordinates
+    h: i32, // height, in screen coordinates
+    refresh_rate: i32, // refresh rate (or zero for unspecified)
+    driverdata: *void // driver specific data
+}
+
+extern def SDL_GetDesktopDisplayMode(display_index: i32, mode: *DisplayMode): i32;
+
+def get_desktop_display_mode(): DisplayMode {
+    let dm: DisplayMode = undefined;
+    SDL_GetDesktopDisplayMode(0, &dm);
+    return dm;
+}
 
 def delta(last: i64): f64 {
     let last = last;

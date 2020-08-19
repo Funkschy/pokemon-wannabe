@@ -1,3 +1,4 @@
+import "io";
 import "sdl";
 
 extern def calloc(size: i32, n: usize): *bool;
@@ -5,6 +6,7 @@ extern def memset(buffer: *bool, value: bool, size: i32): *bool;
 
 type Action enum {
     Quit,
+    Interact,
     Left,
     Right,
     Up,
@@ -58,6 +60,15 @@ def (i: *InputState) update_input_map(event: sdl.Event) {
         return;
     }
 
+    let is_button_down = event.common.kind == sdl.EventKind.JoyButtonDown;
+    if is_button_down || event.common.kind == sdl.EventKind.JoyButtonUp {
+        if event.joy_button_event.button == 0 {
+            i.set_action_pressed(Action.Interact, is_button_down);
+        }
+
+        return;
+    }
+
     let is_keydown = event.common.kind == sdl.EventKind.KeyDown;
     if !is_keydown && event.common.kind != sdl.EventKind.KeyUp {
         return;
@@ -74,6 +85,8 @@ def (i: *InputState) update_input_map(event: sdl.Event) {
         i.set_action_pressed(Action.Up, is_keydown);
     } else if event.key_event.keysym.sym == 's' {
         i.set_action_pressed(Action.Down, is_keydown);
+    } else if event.key_event.keysym.sym == ' ' {
+        i.set_action_pressed(Action.Interact, is_keydown);
     }
 }
 
