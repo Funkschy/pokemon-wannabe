@@ -6,13 +6,34 @@ import "config";
 import "physics";
 import "graphics" as g;
 
+type Kind enum {
+    Basic, WithDialog
+}
+
+type NpcData union {
+    basic: Basic,
+    with_dialog: WithDialog
+}
+
+type Npc struct {
+    kind: Kind,
+    data: NpcData
+}
+
 type Basic struct {
     animation: g.Animation,
     hitbox: physics.Hitbox,
     transform: physics.Transform
 }
 
-def load(renderer: *sdl.Renderer, animation: string, count: u32, init_x: u32, init_y: u32): Basic {
+def load(
+    renderer: *sdl.Renderer,
+    kind: Kind,
+    animation: string,
+    count: u32,
+    init_x: u32,
+    init_y: u32
+): *Npc {
     let spec = g.spritesheet_spec(16, 16, animation);
     let npc_spritesheet: g.SpriteSheet = undefined;
     if !g.load_spritesheet_from_png(renderer, spec, &npc_spritesheet) {
@@ -20,7 +41,7 @@ def load(renderer: *sdl.Renderer, animation: string, count: u32, init_x: u32, in
         return undefined;
     }
 
-    return Basic {
+    let basic = Basic {
         animation: g.create_animation(&npc_spritesheet, count, 0),
         hitbox: physics.hitbox (0, 0, 16, 16),
         transform: physics.Transform {
@@ -28,17 +49,36 @@ def load(renderer: *sdl.Renderer, animation: string, count: u32, init_x: u32, in
             scale: config.scale()
         }
     };
+
+    if kind == Kind.WithDialog {
+        let with_dialog = WithDialog { basic: basic, dialog_text: str.from("") };
+        return new Npc {
+            kind: kind,
+            data: NpcData { with_dialog: with_dialog }
+        };
+    }
+
+    return new Npc {
+        kind: kind,
+        data: NpcData { basic: basic }
+    };
 }
 
-def (b: *Basic) free() {
-    b.animation.free();
+def (n: *Npc) free() {
+    if n.kind == Kind.Basic {
+        n.data.basic.animation.free();
+    } else if n.kind == Kind.WithDialog {
+        n.data.with_dialog.basic.animation.free();
+        n.data.with_dialog.dialog_text.free();
+    }
 }
 
-def (b: *Basic) update(ts: f32) {
-    b.animation.update(ts);
+def (n: *Npc) update(ts: f32) {
+    (&n.data as *Basic).animation.update(ts);
 }
 
-def (b: *Basic) render(renderer: *sdl.Renderer) {
+def (n: *Npc) render(renderer: *sdl.Renderer) {
+    let b = &n.data as *Basic;
     let src = sdl.Rect {
         x: b.transform.position.x as i32,
         y: b.transform.position.y as i32,
@@ -48,17 +88,23 @@ def (b: *Basic) render(renderer: *sdl.Renderer) {
     g.render_sprite(renderer, b.animation.current_sprite(), src, sdl.RendererFlip.None);
 }
 
-def (b: *Basic) abs_rect(): sdl.Rect {
+def (n: *Npc) abs_rect(): sdl.Rect {
+    let b = &n.data as *Basic;
     return b.hitbox.as_absolute_rect(b.transform);
 }
 
-def (b: *Basic) tile_rect(): sdl.Rect {
-    let scale = b.transform.scale as i32;
+def (n: *Npc) tile_rect(): sdl.Rect {
+    let b = &n.data as *Basic;
+    let scale = (b.transform.scale * config.tile_size()) as i32;
     return sdl.Rect {
         x: b.transform.position.x as i32 / scale,
         y: b.transform.position.y as i32 / scale,
-        w: b.hitbox.size.x as i32 / scale,
-        h: b.hitbox.size.y as i32 / scale
+        w: (b.hitbox.size.x as u32 / config.tile_size()) as i32,
+        h: (b.hitbox.size.y as u32 / config.tile_size()) as i32
     };
 }
 
+type WithDialog struct {
+    basic: Basic,
+    dialog_text: str.String
+}

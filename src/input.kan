@@ -62,7 +62,7 @@ def (i: *InputState) update_input_map(event: sdl.Event) {
 
     let is_button_down = event.common.kind == sdl.EventKind.JoyButtonDown;
     if is_button_down || event.common.kind == sdl.EventKind.JoyButtonUp {
-        if event.joy_button_event.button == 0 {
+        if event.joy_button_event.button == 1 {
             i.set_action_pressed(Action.Interact, is_button_down);
         }
 

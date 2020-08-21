@@ -8,7 +8,8 @@ SDL_IMAGE_DIR := vendor/SDL_image
 SDL_IMAGE_BUILD_DIR := $(realpath $(SDL_IMAGE_DIR))/build
 SDL_IMAGE_LIB_DIR := $(SDL_IMAGE_BUILD_DIR)/lib
 
-KANTAN = kantan
+KANTAN = ~/Documents/programming/kantan/compiler/compiler
+#KANTAN = kantan
 KANTAN_FILES = src/dbg.kan \
 			   src/config.kan \
 			   src/graphics.kan \
@@ -22,6 +23,7 @@ KANTAN_FILES = src/dbg.kan \
 			   src/sdl.kan \
 			   src/std.kan \
 			   src/str.kan \
+			   src/text.kan \
 			   src/world.kan
 OBJ = game.o
 

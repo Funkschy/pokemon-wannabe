@@ -1,9 +1,12 @@
+import "str";
 import "std";
 import "npc";
+import "sdl";
+import "text";
 import "ptrvec";
 
 type TileState enum {
-    Empty, HasNpc
+    Empty, HasNpc, HasDialogNpc
 }
 
 type Tile struct {
@@ -13,31 +16,75 @@ type Tile struct {
 
 type World struct {
     width_units: u32,
+    text_stopped_at: usize,
     tiles: *Tile,
+    current_text: str.View,
+    textbox: text.TextBox,
     npcs: ptrvec.Vec // ptrvec.Vec<*npc.Basic>
 }
 
-def create(width_units: u32, height_units: u32): World {
+def create(renderer: *sdl.Renderer, width_units: u32, height_units: u32): World {
     return World {
         width_units: width_units,
+        text_stopped_at: 0,
         tiles: std.calloc((width_units * height_units) as usize, sizeof Tile) as *Tile,
+        current_text: str.view(0, ""),
+        textbox: text.load(renderer),
         npcs: ptrvec.create()
     };
 }
 
 def (w: *World) free() {
     delete w.tiles;
+    for let i: usize = 0; i < w.npcs.len; i += 1 {
+        let npc = w.npcs.get(i) as *npc.Npc;
+        npc.free();
+    }
     w.npcs.free();
+    w.textbox.free();
 }
 
-def (w: *World) add_npc(npc: *npc.Basic) {
-    w.npcs.push_ptr(npc as *void);
-    let npc_rect = npc.tile_rect();
+def (w: *World) add_npc(new_npc: *npc.Npc) {
+    w.npcs.push_ptr(new_npc as *void);
+    let npc_rect = new_npc.tile_rect();
+    let kind = TileState.HasNpc;
+    if new_npc.kind == npc.Kind.WithDialog {
+        kind = TileState.HasDialogNpc;
+    }
 
     for let y = npc_rect.y; y < npc_rect.y + npc_rect.h; y += 1 {
         for let x = npc_rect.x; x < npc_rect.x + npc_rect.w; x += 1 {
             let idx = y as u32 * w.width_units + x as u32;
-            *(w.tiles + idx) = Tile { kind: TileState.HasNpc, data: null };
+
+            *(w.tiles + idx) = Tile { kind: kind, data: new_npc as *void };
         }
     }
+}
+
+def (w: *World) get_tile(x: u32, y: u32): Tile {
+    let idx = y * w.width_units + x;
+    return *(w.tiles + idx);
+}
+
+def (w: *World) set_text(text: str.View) {
+    w.current_text = text;
+    w.text_stopped_at = 0;
+}
+
+def (w: *World) scroll_text(): bool {
+    if w.current_text.len == 0 || w.text_stopped_at == 0 {
+        return false;
+    }
+
+    w.current_text.data += w.text_stopped_at;
+    w.current_text.len -= w.text_stopped_at;
+    return w.current_text.len == 0 || w.text_stopped_at == 0;
+}
+
+def (w: *World) render_hud(renderer: *sdl.Renderer) {
+    if w.current_text.len == 0 {
+        return;
+    }
+
+    w.text_stopped_at = w.textbox.render(renderer, w.current_text, 5);
 }

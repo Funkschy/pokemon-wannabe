@@ -1,0 +1,148 @@
+import "io";
+import "str";
+import "sdl";
+import "config";
+import "graphics" as g;
+
+let element_width = 3;
+let element_height = 22;
+let chars_per_row = 18;
+
+type Font struct {
+    spritesheet: g.SpriteSheet
+}
+
+def (f: *Font) free() {
+    f.spritesheet.free();
+}
+
+def (f: *Font) get_char(c: i8): g.Sprite {
+    let upper = c - 32 * ((c >= 'a' && c <= 'z') as i8);
+    let idx = (upper - '.' + 1) as i32;
+    idx *= (upper >= '.' || upper <= 'Z') as i32;
+
+    return f.spritesheet.get(idx % chars_per_row, idx / chars_per_row);
+}
+
+def load_font(renderer: *sdl.Renderer): Font {
+    let spec = g.spritesheet_spec(7, 7, "res/gb-font.png");
+    let font_spritesheet: g.SpriteSheet = undefined;
+    if !g.load_spritesheet_from_png(renderer, spec, &font_spritesheet) {
+        io.printf("Could not load sprite: %s\n", sdl.get_error());
+        return undefined;
+    }
+
+    return Font {
+        spritesheet: font_spritesheet
+    };
+}
+
+type TextBox struct {
+    font: Font,
+    side: g.Sprite,
+    middle: g.Sprite,
+    spritesheet: g.SpriteSheet
+}
+
+def load(renderer: *sdl.Renderer): TextBox {
+    let font = load_font(renderer);
+
+    let spec = g.spritesheet_spec(element_width, element_height, "res/text-box.png");
+    let textbox_spritesheet: g.SpriteSheet = undefined;
+    if !g.load_spritesheet_from_png(renderer, spec, &textbox_spritesheet) {
+        io.printf("Could not load sprite: %s\n", sdl.get_error());
+        return undefined;
+    }
+
+    return TextBox {
+        font: font,
+        side: textbox_spritesheet.get(0, 0),
+        middle: textbox_spritesheet.get(1, 0),
+        spritesheet: textbox_spritesheet
+    };
+}
+
+def (tb: *TextBox) free() {
+    tb.spritesheet.free();
+    tb.font.free();
+}
+
+def is_word_sep(c: i8): bool {
+    return c == ' ' || c == '\n';
+}
+
+def (tb: *TextBox) render(renderer: *sdl.Renderer, text: str.View, size: u32): usize {
+    let scale = config.scale() as i32;
+    let side_dist = 8 * scale;
+    let total_width = config.pixel_width() as i32 - 2 * side_dist;
+
+    let dest = sdl.Rect {
+        x: side_dist,
+        y: config.pixel_height() as i32 - element_height * scale,
+        w: scale * element_width,
+        h: scale * element_height
+    };
+    let left_end_rect = dest;
+    g.render_sprite(renderer, &tb.side, dest, sdl.RendererFlip.None);
+
+    let middle_width = total_width - 2 * dest.w;
+    let middle_x = dest.x + dest.w;
+    dest.x = middle_x;
+    dest.w = middle_width;
+    g.render_sprite(renderer, &tb.middle, dest, sdl.RendererFlip.None);
+
+    dest.w = (config.scale() * size) as i32;
+    dest.h = (config.scale() * size) as i32;
+    dest.y += 2 * scale;
+
+    let right_end = left_end_rect.x + scale * element_width + middle_width;
+
+    let len = text.len;
+    let s = text.data;
+    let ret: usize = text.len;
+
+    for let i: usize = 0; i < len; i += 1 {
+        let word_len = 1;
+        if *(s + i) == ' ' {
+            let j = i + 1;
+            for ;j < len && *(s + j) == ' '; j += 1 {
+                i += 1;
+            }
+
+            for ;j < len && !is_word_sep(*(s + j)); j += 1 {
+                word_len += 1;
+            }
+        }
+
+        let split_at_word = dest.x + dest.w * word_len > right_end
+            && left_end_rect.x + dest.w * word_len < right_end;
+
+        if split_at_word {
+            io.printf("%d\n", word_len);
+        }
+
+        if dest.x + dest.w >= right_end || split_at_word || *(s + i) == '\n' {
+            dest.y += (size as i32 + 1) * scale;
+            for let j = i + 1; j < len && *(s + j) == '\n'; j += 1 {
+                i += 1;
+                dest.y += (size as i32 + 1) * scale;
+            }
+            dest.x = middle_x;
+
+            for ;i < len && is_word_sep(*(s + i)); i += 1 {}
+
+            if dest.y + dest.h >= config.pixel_height() as i32 {
+                ret = i;
+                break;
+            }
+        }
+
+        let sprite = tb.font.get_char(*(s + i));
+        g.render_sprite(renderer, &sprite, dest, sdl.RendererFlip.None);
+        dest.x += dest.w;
+    }
+
+    left_end_rect.x = right_end;
+    g.render_sprite(renderer, &tb.side, left_end_rect, sdl.RendererFlip.Horizontal);
+    return ret;
+}

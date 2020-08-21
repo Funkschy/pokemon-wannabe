@@ -1,5 +1,6 @@
 import "io";
 import "sdl";
+import "str";
 import "npc";
 import "world";
 import "config";
@@ -14,6 +15,13 @@ def main() {
         return;
     }
     defer sdl.quit();
+
+    let flags = sdl.init_png();
+    if (sdl.img_init(flags) & flags) != flags {
+        io.printf("Coult not init SDL_Image\n");
+        return;
+    }
+    defer sdl.img_quit();
 
     let display_mode = sdl.get_desktop_display_mode();
     config.set_scale(display_mode.h as u32 / config.pixel_height() / 2);
@@ -45,7 +53,11 @@ def main() {
     }
     defer joystick.close();
 
-    let world = world.create(config.width(), config.height());
+    let world = world.create(
+        renderer,
+        config.width() / config.tile_size(),
+        config.height() / config.tile_size()
+    );
     defer world.free();
 
     let player = p.load(renderer, width / 2, height / 2);
@@ -53,8 +65,17 @@ def main() {
     player.current_animation = &player.idle_animation;
 
     let npcs = ptrvec.create();
-    let cat = npc.load(renderer, "res/cat.png", 8, width / 3, height / 3);
-    world.add_npc(&cat);
+    let cat = npc.load(
+        renderer, npc.Kind.WithDialog, "res/cat.png", 8, width / 3, height / 3
+    );
+    cat.data.with_dialog.dialog_text = str.from("Meow\n\n\nHey Kid\nyou got some Catnip?");
+    world.add_npc(cat);
+
+    let girl = npc.load(
+        renderer, npc.Kind.WithDialog, "res/thot.png", 12, 3 * (width / 4), height / 3
+    );
+    girl.data.with_dialog.dialog_text = str.from("Subscribe on twitch.tv\n\n\nand onlyfans");
+    world.add_npc(girl);
 
     let e: sdl.Event = undefined;
     let last = sdl.now();
@@ -72,21 +93,20 @@ def main() {
             input.update_input_map(e);
         }
 
-        let old_pos = player.transform.position;
         player.update(delta, &input, &world);
 
         renderer.clear();
 
         for let i: usize = 0; i < world.npcs.len; i += 1 {
-            let npc = world.npcs.get(i) as *npc.Basic;
+            let npc = world.npcs.get(i) as *npc.Npc;
             npc.update(delta);
-            if player.collides_with(npc.abs_rect()) {
-                player.transform.position = old_pos;
-            }
+            player.resolve_collision(npc.abs_rect());
             npc.render(renderer);
         }
 
         player.render(renderer);
+        world.render_hud(renderer);
+
         renderer.present();
     }
 }

@@ -98,6 +98,10 @@ def (r: *Renderer) draw_rect(rect: *Rect): i32 {
     return SDL_RenderDrawRect(r, rect);
 }
 
+def (r: *Renderer) copy(t: *Texture, src: *Rect, dest: *Rect): i32 {
+    return SDL_RenderCopy(r, t, src, dest);
+}
+
 def (r: *Renderer) copy_ex(
     t: *Texture,
     src: *Rect,
@@ -374,6 +378,13 @@ type RendererFlip enum {
     None, Horizontal, Vertical
 }
 
+extern def SDL_RenderCopy(
+    r: *Renderer,
+    t: *Texture,
+    src: *Rect,
+    dest: *Rect
+): i32;
+
 extern def SDL_RenderCopyEx(
     r: *Renderer,
     t: *Texture,
@@ -409,7 +420,28 @@ def blit_surface(src: *Surface, src_rect: *Rect, dest: *Surface, dest_rect: *Rec
 }
 
 // SDL_image
+
+extern def IMG_Init(flags: i32): i32;
+extern def IMG_Quit();
+
+def init_jpg(): i32 {
+    return 1;
+}
+
+def init_png(): i32 {
+    return 2;
+}
+
+def img_init(flags: i32): i32 {
+    return IMG_Init(flags);
+}
+
+def img_quit() {
+    IMG_Quit();
+}
+
 extern def IMG_LoadPNG_RW(rwops: *RwOps): *Surface;
+
 def load_png(filename: string): *Surface {
     return IMG_LoadPNG_RW(SDL_RWFromFile(filename, "rb"));
 }
