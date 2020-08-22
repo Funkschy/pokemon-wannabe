@@ -98,6 +98,10 @@ def (r: *Renderer) draw_rect(rect: *Rect): i32 {
     return SDL_RenderDrawRect(r, rect);
 }
 
+def (r: *Renderer) fill_rect(rect: *Rect): i32 {
+    return SDL_RenderFillRect(r, rect);
+}
+
 def (r: *Renderer) copy(t: *Texture, src: *Rect, dest: *Rect): i32 {
     return SDL_RenderCopy(r, t, src, dest);
 }
@@ -330,6 +334,7 @@ extern def SDL_CreateRenderer(window: *Window, index: i32, flags: i32): *Rendere
 extern def SDL_SetRenderDrawColor(renderer: *Renderer, r: i32, g: i32, b: i32, a: i32): i32;
 extern def SDL_RenderPresent(renderer: *Renderer);
 extern def SDL_RenderDrawRect(renderer: *Renderer, rect: *Rect): i32;
+extern def SDL_RenderFillRect(renderer: *Renderer, rect: *Rect): i32;
 extern def SDL_DestroyWindow(win: *Window);
 extern def SDL_DestroyRenderer(r: *Renderer);
 extern def SDL_FreeSurface(s: *Surface);

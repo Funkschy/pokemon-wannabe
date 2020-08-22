@@ -18,8 +18,8 @@ def (f: *Font) free() {
 
 def (f: *Font) get_char(c: i8): g.Sprite {
     let upper = c - 32 * ((c >= 'a' && c <= 'z') as i8);
-    let idx = (upper - '.' + 1) as i32;
-    idx *= (upper >= '.' || upper <= 'Z') as i32;
+    let idx = (upper - ',' + 1) as i32;
+    idx *= (upper >= ',' || upper <= 'Z') as i32;
 
     return f.spritesheet.get(idx % chars_per_row, idx / chars_per_row);
 }
@@ -78,7 +78,7 @@ def (tb: *TextBox) render(renderer: *sdl.Renderer, text: str.View, size: u32): u
 
     let dest = sdl.Rect {
         x: side_dist,
-        y: config.pixel_height() as i32 - element_height * scale,
+        y: config.pixel_height() as i32 - element_height * scale - scale,
         w: scale * element_width,
         h: scale * element_height
     };
@@ -102,23 +102,20 @@ def (tb: *TextBox) render(renderer: *sdl.Renderer, text: str.View, size: u32): u
     let ret: usize = text.len;
 
     for let i: usize = 0; i < len; i += 1 {
-        let word_len = 1;
+        let split_at_word = false;
         if *(s + i) == ' ' {
             let j = i + 1;
             for ;j < len && *(s + j) == ' '; j += 1 {
                 i += 1;
             }
 
+            let word_len = 1;
             for ;j < len && !is_word_sep(*(s + j)); j += 1 {
                 word_len += 1;
             }
-        }
 
-        let split_at_word = dest.x + dest.w * word_len > right_end
-            && left_end_rect.x + dest.w * word_len < right_end;
-
-        if split_at_word {
-            io.printf("%d\n", word_len);
+            split_at_word = dest.x + dest.w * word_len > right_end
+                            && left_end_rect.x + dest.w * word_len < right_end;
         }
 
         if dest.x + dest.w >= right_end || split_at_word || *(s + i) == '\n' {

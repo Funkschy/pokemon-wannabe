@@ -43,7 +43,7 @@ def main() {
     defer window.destroy();
 
     let renderer = sdl.create_renderer(window, -1, sdl.present_vsync());
-    renderer.set_draw_color(50, 50, 50, 255);
+    renderer.set_draw_color(0, 19, 26, 255);
     defer renderer.destroy();
 
     let joystick: *sdl.Joystick = null;
@@ -66,15 +66,15 @@ def main() {
 
     let npcs = ptrvec.create();
     let cat = npc.load(
-        renderer, npc.Kind.WithDialog, "res/cat.png", 8, width / 3, height / 3
+        renderer, npc.Kind.WithDialog, "res/cat.png", 8, 0, config.tile_size() * config.scale()
     );
     cat.data.with_dialog.dialog_text = str.from("Meow\n\n\nHey Kid\nyou got some Catnip?");
     world.add_npc(cat);
 
     let girl = npc.load(
-        renderer, npc.Kind.WithDialog, "res/thot.png", 12, 3 * (width / 4), height / 3
+        renderer, npc.Kind.WithDialog, "res/thot.png", 12, 3 * (width / 4), height / 3 - config.scale()
     );
-    girl.data.with_dialog.dialog_text = str.from("Subscribe on twitch.tv\n\n\nand onlyfans");
+    girl.data.with_dialog.dialog_text = str.from("Follow me on twitch, Instagram, Snapchat, Twitter, Youtube\nand onlyfans");
     world.add_npc(girl);
 
     let e: sdl.Event = undefined;
@@ -96,6 +96,7 @@ def main() {
         player.update(delta, &input, &world);
 
         renderer.clear();
+        world.render_background(renderer);
 
         for let i: usize = 0; i < world.npcs.len; i += 1 {
             let npc = world.npcs.get(i) as *npc.Npc;

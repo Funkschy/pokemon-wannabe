@@ -1,12 +1,15 @@
+import "io";
 import "str";
 import "std";
 import "npc";
 import "sdl";
 import "text";
 import "ptrvec";
+import "config";
+import "graphics" as g;
 
 type TileState enum {
-    Empty, HasNpc, HasDialogNpc
+    Empty, Object, HasNpc, HasDialogNpc
 }
 
 type Tile struct {
@@ -16,7 +19,11 @@ type Tile struct {
 
 type World struct {
     width_units: u32,
+    height_units: u32,
     text_stopped_at: usize,
+    ground: g.SpriteSheet,
+    current_ground: g.Sprite,
+    current_wall: g.Sprite,
     tiles: *Tile,
     current_text: str.View,
     textbox: text.TextBox,
@@ -24,9 +31,20 @@ type World struct {
 }
 
 def create(renderer: *sdl.Renderer, width_units: u32, height_units: u32): World {
+    let spec = g.spritesheet_spec(config.tile_size() as i32, config.tile_size() as i32, "res/background.png");
+    let background_spritesheet: g.SpriteSheet = undefined;
+    if !g.load_spritesheet_from_png(renderer, spec, &background_spritesheet) {
+        io.printf("Could not load sprite: %s\n", sdl.get_error());
+        return undefined;
+    }
+
     return World {
         width_units: width_units,
+        height_units: height_units,
         text_stopped_at: 0,
+        ground: background_spritesheet,
+        current_ground: background_spritesheet.get(1, 0),
+        current_wall: background_spritesheet.get(0, 2),
         tiles: std.calloc((width_units * height_units) as usize, sizeof Tile) as *Tile,
         current_text: str.view(0, ""),
         textbox: text.load(renderer),
@@ -42,6 +60,7 @@ def (w: *World) free() {
     }
     w.npcs.free();
     w.textbox.free();
+    w.ground.free();
 }
 
 def (w: *World) add_npc(new_npc: *npc.Npc) {
@@ -79,6 +98,38 @@ def (w: *World) scroll_text(): bool {
     w.current_text.data += w.text_stopped_at;
     w.current_text.len -= w.text_stopped_at;
     return w.current_text.len == 0 || w.text_stopped_at == 0;
+}
+
+def (w: *World) render_background(renderer: *sdl.Renderer) {
+    let sprite = &w.current_wall;
+    let scale = config.tile_size() * config.scale() as i32;
+
+    for let y: u32 = 0; y < w.height_units; y += 1 {
+        if y > 1 {
+            sprite = &w.current_ground;
+        }
+
+        for let x: u32 = 0; x < w.width_units; x += 1 {
+            let dest = sdl.Rect {
+                x: x as i32 * scale,
+                y: y as i32 * scale,
+                w: scale,
+                h: scale
+            };
+            g.render_sprite(renderer, sprite, dest, sdl.RendererFlip.None);
+        }
+
+        // first ground row just rendered
+        if y == 2 {
+            let line = sdl.Rect {
+                x: 0,
+                y: scale * 2,
+                w: config.pixel_width() as i32,
+                h: config.scale() as i32
+            };
+            renderer.fill_rect(&line);
+        }
+    }
 }
 
 def (w: *World) render_hud(renderer: *sdl.Renderer) {
