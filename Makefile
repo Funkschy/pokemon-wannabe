@@ -41,7 +41,6 @@ $(BIN_NAME) : $(KANTAN_FILES)
 		../configure --prefix=$(SDL_IMAGE_BUILD_DIR) --exec-prefix=$(SDL_IMAGE_BUILD_DIR) && \
 		make -j4 && make install; \
 	fi ;
-	$(KANTAN) $(KANTAN_FILES) -o $(OBJ) -g ; \
-	LIBS=$$($(SDL_BUILD_DIR)/sdl2-config --static-libs); \
-	gcc $(OBJ) $$LIBS -lm -lSDL -L$(SDL_IMAGE_LIB_DIR) -lSDL2_image -o $(BIN_NAME) ; \
-	rm $(OBJ)
+	$(KANTAN) $(KANTAN_FILES) -o $(OBJ) -g -O2 --arch wasm32 && \
+	source ~/Downloads/emsdk/emsdk_env.sh && \
+	emcc $(OBJ) -s WASM=1 -s USE_SDL=2 -o index.js
