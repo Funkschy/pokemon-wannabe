@@ -6,7 +6,8 @@ SDL_BUILD_DIR := $(realpath $(SDL_DIR))/build
 
 SDL_IMAGE_DIR := vendor/SDL_image
 SDL_IMAGE_BUILD_DIR := $(realpath $(SDL_IMAGE_DIR))/build
-SDL_IMAGE_LIB_DIR := $(SDL_IMAGE_BUILD_DIR)/lib
+
+EMCC_PRELOADS = --use-preload-plugins $(addprefix --preload-file ,$(shell find res -name '*.png'))
 
 KANTAN = ~/Documents/programming/kantan/compiler/compiler
 #KANTAN = kantan
@@ -43,4 +44,4 @@ $(BIN_NAME) : $(KANTAN_FILES)
 	fi ;
 	$(KANTAN) $(KANTAN_FILES) -o $(OBJ) -g -O2 --arch wasm32 && \
 	source ~/Downloads/emsdk/emsdk_env.sh && \
-	emcc $(OBJ) -s WASM=1 -s USE_SDL=2 -o index.js
+	emcc $(OBJ) -s WASM=1 -s USE_SDL=2 -s USE_SDL_IMAGE=2 -s SDL2_IMAGE_FORMATS='["png"]' $(EMCC_PRELOADS) -o index.js

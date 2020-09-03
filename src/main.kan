@@ -9,6 +9,62 @@ import "player" as p;
 import "objects" as o;
 import "graphics" as g;
 
+delegate def MainLoop(arg: *Game);
+extern def emscripten_set_main_loop_arg(loop: MainLoop, arg: *Game, fps: i32, simulate_inf_loop: i32);
+
+type Game struct {
+    renderer: *sdl.Renderer,
+    window: *sdl.Window,
+    world: world.World,
+    last: i64,
+    input: i.InputState,
+
+    player: p.Player,
+
+    cat: *npc.Npc,
+    thot: *npc.Npc,
+    bed: *o.Object,
+    clock: *o.Object,
+    table: *o.Object
+}
+
+def mainloop(g: *Game) {
+    let e: sdl.Event = undefined;
+    let delta = sdl.delta(g.last) as f32;
+    g.last = sdl.now();
+
+    while e.poll() != 0 {
+        if e.common.kind == sdl.EventKind.Quit {
+            return;
+        }
+
+        g.input.update_input_map(e);
+    }
+
+    g.player.update(delta, &g.input, &g.world);
+
+    g.renderer.clear();
+    g.world.render_background(g.renderer);
+
+    for let i: usize = 0; i < g.world.objects.len; i += 1 {
+        let obj = g.world.objects.get(i) as *o.Object;
+        g.player.resolve_collision(obj.abs_rect());
+        obj.render(g.renderer);
+    }
+
+    for let i: usize = 0; i < g.world.npcs.len; i += 1 {
+        let npc = g.world.npcs.get(i) as *npc.Npc;
+        npc.update(delta);
+        g.player.resolve_collision(npc.abs_rect());
+        npc.render(g.renderer);
+    }
+
+    g.player.render(g.renderer);
+    g.world.render_hud(g.renderer);
+
+    g.renderer.present();
+}
+
 def main() {
     if sdl.init(sdl.init_video() | sdl.init_joystick()) < 0 {
         io.printf("Could not init SDL: %s\n", sdl.get_error());
@@ -46,82 +102,51 @@ def main() {
     renderer.set_draw_color(0, 19, 26, 255);
     defer renderer.destroy();
 
-    let joystick: *sdl.Joystick = null;
-    if sdl.num_joysticks() > 0 && (joystick = sdl.open_joystick(0)) == null {
-        io.printf("Could not open joystick: %s\n", sdl.get_error());
-        return;
-    }
-    defer joystick.close();
+    // let joystick: *sdl.Joystick = null;
+    // if sdl.num_joysticks() > 0 && (joystick = sdl.open_joystick(0)) == null {
+    //     io.printf("Could not open joystick: %s\n", sdl.get_error());
+    //     return;
+    // }
+    // defer joystick.close();
 
-    let world = world.create(
+    let game: Game = undefined;
+    game.renderer = renderer;
+    game.window = window;
+
+    game.world = world.create(
         renderer,
         config.width() / config.tile_size(),
         config.height() / config.tile_size()
     );
-    defer world.free();
+    defer game.world.free();
 
-    let player = p.load(renderer, width / 2, height / 2);
-    defer player.free();
-    player.current_animation = &player.idle_animation;
+    game.player = p.load(renderer, width / 2, height / 2);
+    defer game.player.free();
+    game.player.current_animation = &game.player.idle_animation;
 
-    let cat = npc.load(renderer, npc.Kind.WithDialog, "res/cat.png", 8, 3, 1);
-    cat.data.with_dialog.dialog_text = str.from(
+    game.cat = npc.load(renderer, npc.Kind.WithDialog, "res/cat.png", 8, 3, 1);
+    game.cat.data.with_dialog.dialog_text = str.from(
         "Meow\n\n\nHey Kid\nyou got some Catnip?"
     );
-    cat.data.with_dialog.basic.flip = sdl.RendererFlip.Horizontal;
-    world.add_npc(cat);
+    game.cat.data.with_dialog.basic.flip = sdl.RendererFlip.Horizontal;
+    game.world.add_npc(game.cat);
 
-    let thot = npc.load(renderer, npc.Kind.WithDialog, "res/thot.png", 12, 14, 5);
+    game.thot = npc.load(renderer, npc.Kind.WithDialog, "res/thot.png", 12, 14, 5);
 
-    thot.data.with_dialog.dialog_text = str.from(
+    game.thot.data.with_dialog.dialog_text = str.from(
         "Follow me on twitch, Instagram, Snapchat, Twitter, Youtube\nand onlyfans"
     );
-    world.add_npc(thot);
+    game.world.add_npc(game.thot);
 
-    let bed = o.load(renderer, 1, 1, 16, 32, "res/bed.png");
-    world.add_object(bed);
-    let clock = o.load(renderer, 18, 0, 16, 32, "res/clock.png");
-    world.add_object(clock);
-    let table = o.load(renderer, 10, 9, 16, 32, "res/table.png");
-    world.add_object(table);
+    game.bed = o.load(renderer, 1, 1, 16, 32, "res/bed.png");
+    game.world.add_object(game.bed);
+    game.clock = o.load(renderer, 18, 0, 16, 32, "res/clock.png");
+    game.world.add_object(game.clock);
+    game.table = o.load(renderer, 10, 9, 16, 32, "res/table.png");
+    game.world.add_object(game.table);
 
-    let e: sdl.Event = undefined;
-    let last = sdl.now();
-    let input = i.init_input_map();
+    game.last = sdl.now();
+    game.input = i.init_input_map();
 
-    while true {
-        let delta = sdl.delta(last) as f32;
-        last = sdl.now();
-
-        while e.poll() != 0 {
-            if e.common.kind == sdl.EventKind.Quit {
-                return;
-            }
-
-            input.update_input_map(e);
-        }
-
-        player.update(delta, &input, &world);
-
-        renderer.clear();
-        world.render_background(renderer);
-
-        for let i: usize = 0; i < world.objects.len; i += 1 {
-            let obj = world.objects.get(i) as *o.Object;
-            player.resolve_collision(obj.abs_rect());
-            obj.render(renderer);
-        }
-
-        for let i: usize = 0; i < world.npcs.len; i += 1 {
-            let npc = world.npcs.get(i) as *npc.Npc;
-            npc.update(delta);
-            player.resolve_collision(npc.abs_rect());
-            npc.render(renderer);
-        }
-
-        player.render(renderer);
-        world.render_hud(renderer);
-
-        renderer.present();
-    }
+    emscripten_set_main_loop_arg(&mainloop, &game, -1, 1);
 }
