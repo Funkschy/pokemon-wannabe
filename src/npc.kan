@@ -21,6 +21,7 @@ type Npc struct {
 }
 
 type Basic struct {
+    flip: sdl.RendererFlip,
     animation: g.Animation,
     hitbox: physics.Hitbox,
     transform: physics.Transform
@@ -31,21 +32,23 @@ def load(
     kind: Kind,
     animation: string,
     count: u32,
-    init_x: u32,
-    init_y: u32
+    x: u32,
+    y: u32
 ): *Npc {
     let spec = g.spritesheet_spec(16, 16, animation);
     let npc_spritesheet: g.SpriteSheet = undefined;
     if !g.load_spritesheet_from_png(renderer, spec, &npc_spritesheet) {
         io.printf("Could not load sprite: %s\n", sdl.get_error());
-        return undefined;
+        return null;
     }
 
+    let scale = config.scale() * config.tile_size();
     let basic = Basic {
+        flip: sdl.RendererFlip.None,
         animation: g.create_animation(&npc_spritesheet, count, 0),
         hitbox: physics.hitbox (0, 0, 16, 16),
         transform: physics.Transform {
-            position: math.vec2f(init_x as f32, init_y as f32),
+            position: math.vec2f(scale * x as f32, scale * y as f32),
             scale: config.scale()
         }
     };
@@ -85,7 +88,7 @@ def (n: *Npc) render(renderer: *sdl.Renderer) {
         w: b.transform.scale as i32 * 16,
         h: b.transform.scale as i32 * 16
     };
-    g.render_sprite(renderer, b.animation.current_sprite(), src, sdl.RendererFlip.None);
+    g.render_sprite(renderer, b.animation.current_sprite(), src, b.flip);
 }
 
 def (n: *Npc) abs_rect(): sdl.Rect {
@@ -95,13 +98,7 @@ def (n: *Npc) abs_rect(): sdl.Rect {
 
 def (n: *Npc) tile_rect(): sdl.Rect {
     let b = &n.data as *Basic;
-    let scale = (b.transform.scale * config.tile_size()) as i32;
-    return sdl.Rect {
-        x: b.transform.position.x as i32 / scale,
-        y: b.transform.position.y as i32 / scale,
-        w: (b.hitbox.size.x as u32 / config.tile_size()) as i32,
-        h: (b.hitbox.size.y as u32 / config.tile_size()) as i32
-    };
+    return physics.tile_rect(b.transform, b.hitbox);
 }
 
 type WithDialog struct {

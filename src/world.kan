@@ -6,6 +6,7 @@ import "sdl";
 import "text";
 import "ptrvec";
 import "config";
+import "objects" as o;
 import "graphics" as g;
 
 type TileState enum {
@@ -27,7 +28,8 @@ type World struct {
     tiles: *Tile,
     current_text: str.View,
     textbox: text.TextBox,
-    npcs: ptrvec.Vec // ptrvec.Vec<*npc.Basic>
+    npcs: ptrvec.Vec, // ptrvec.Vec<*npc.Npc>
+    objects: ptrvec.Vec // ptrvec.Vec<*o.Object>
 }
 
 def create(renderer: *sdl.Renderer, width_units: u32, height_units: u32): World {
@@ -48,7 +50,8 @@ def create(renderer: *sdl.Renderer, width_units: u32, height_units: u32): World 
         tiles: std.calloc((width_units * height_units) as usize, sizeof Tile) as *Tile,
         current_text: str.view(0, ""),
         textbox: text.load(renderer),
-        npcs: ptrvec.create()
+        npcs: ptrvec.create(),
+        objects: ptrvec.create()
     };
 }
 
@@ -58,9 +61,26 @@ def (w: *World) free() {
         let npc = w.npcs.get(i) as *npc.Npc;
         npc.free();
     }
+    for let i: usize = 0; i < w.objects.len; i += 1 {
+        delete w.objects.get(i);
+    }
     w.npcs.free();
+    w.objects.free();
     w.textbox.free();
     w.ground.free();
+}
+
+def (w: *World) add_object(obj: *o.Object) {
+    w.objects.push_ptr(obj as *void);
+    let obj_rect = obj.tile_rect();
+
+    for let y = obj_rect.y; y < obj_rect.y + obj_rect.h; y += 1 {
+        for let x = obj_rect.x; x < obj_rect.x + obj_rect.w; x += 1 {
+            let idx = y as u32 * w.width_units + x as u32;
+
+            *(w.tiles + idx) = Tile { kind: TileState.Object, data: obj as *void };
+        }
+    }
 }
 
 def (w: *World) add_npc(new_npc: *npc.Npc) {

@@ -1,0 +1,51 @@
+import "io";
+import "sdl";
+import "math";
+import "config";
+import "physics";
+import "graphics" as g;
+
+type Object struct {
+    sprite: g.Sprite,
+    spritesheet: g.SpriteSheet,
+    transform: physics.Transform,
+    hitbox: physics.Hitbox
+}
+
+def load(renderer: *sdl.Renderer, x: u32, y: u32, w: u32, h: u32, sprite: string): *Object {
+    let spec = g.spritesheet_spec(w as i32, h as i32, sprite);
+    let obj_spritesheet: g.SpriteSheet = undefined;
+    if !g.load_spritesheet_from_png(renderer, spec, &obj_spritesheet) {
+        io.printf("Could not load sprite: %s\n", sdl.get_error());
+        return null;
+    }
+
+    let scale = config.scale() * config.tile_size();
+    return new Object {
+        sprite: obj_spritesheet.get(0, 0),
+        spritesheet: obj_spritesheet,
+        transform: physics.Transform {
+            position: math.vec2f(scale * x as f32, scale * y as f32), scale: config.scale()
+        },
+        hitbox: physics.hitbox(0, 0, w, h)
+    };
+}
+
+def (o: *Object) render(renderer: *sdl.Renderer) {
+    let src = sdl.Rect {
+        x: o.transform.position.x as i32,
+        y: o.transform.position.y as i32,
+        w: o.transform.scale as i32 * o.sprite.rect.w,
+        h: o.transform.scale as i32 * o.sprite.rect.h
+    };
+    g.render_sprite(renderer, &o.sprite, src, sdl.RendererFlip.None);
+}
+
+def (o: *Object) abs_rect(): sdl.Rect {
+    return o.hitbox.as_absolute_rect(o.transform);
+}
+
+def (o: *Object) tile_rect(): sdl.Rect {
+    return physics.tile_rect(o.transform, o.hitbox);
+}
+

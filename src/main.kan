@@ -4,9 +4,9 @@ import "str";
 import "npc";
 import "world";
 import "config";
-import "ptrvec";
 import "input" as i;
 import "player" as p;
+import "objects" as o;
 import "graphics" as g;
 
 def main() {
@@ -64,18 +64,26 @@ def main() {
     defer player.free();
     player.current_animation = &player.idle_animation;
 
-    let npcs = ptrvec.create();
-    let cat = npc.load(
-        renderer, npc.Kind.WithDialog, "res/cat.png", 8, 0, config.tile_size() * config.scale()
+    let cat = npc.load(renderer, npc.Kind.WithDialog, "res/cat.png", 8, 3, 1);
+    cat.data.with_dialog.dialog_text = str.from(
+        "Meow\n\n\nHey Kid\nyou got some Catnip?"
     );
-    cat.data.with_dialog.dialog_text = str.from("Meow\n\n\nHey Kid\nyou got some Catnip?");
+    cat.data.with_dialog.basic.flip = sdl.RendererFlip.Horizontal;
     world.add_npc(cat);
 
-    let girl = npc.load(
-        renderer, npc.Kind.WithDialog, "res/thot.png", 12, 3 * (width / 4), height / 3 - config.scale()
+    let thot = npc.load(renderer, npc.Kind.WithDialog, "res/thot.png", 12, 14, 5);
+
+    thot.data.with_dialog.dialog_text = str.from(
+        "Follow me on twitch, Instagram, Snapchat, Twitter, Youtube\nand onlyfans"
     );
-    girl.data.with_dialog.dialog_text = str.from("Follow me on twitch, Instagram, Snapchat, Twitter, Youtube\nand onlyfans");
-    world.add_npc(girl);
+    world.add_npc(thot);
+
+    let bed = o.load(renderer, 1, 1, 16, 32, "res/bed.png");
+    world.add_object(bed);
+    let clock = o.load(renderer, 18, 0, 16, 32, "res/clock.png");
+    world.add_object(clock);
+    let table = o.load(renderer, 10, 9, 16, 32, "res/table.png");
+    world.add_object(table);
 
     let e: sdl.Event = undefined;
     let last = sdl.now();
@@ -97,6 +105,12 @@ def main() {
 
         renderer.clear();
         world.render_background(renderer);
+
+        for let i: usize = 0; i < world.objects.len; i += 1 {
+            let obj = world.objects.get(i) as *o.Object;
+            player.resolve_collision(obj.abs_rect());
+            obj.render(renderer);
+        }
 
         for let i: usize = 0; i < world.npcs.len; i += 1 {
             let npc = world.npcs.get(i) as *npc.Npc;

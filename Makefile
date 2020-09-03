@@ -17,6 +17,7 @@ KANTAN_FILES = src/dbg.kan \
 			   src/main.kan \
 			   src/math.kan \
 			   src/npc.kan \
+			   src/objects.kan \
 			   src/physics.kan \
 			   src/player.kan \
 			   src/ptrvec.kan \

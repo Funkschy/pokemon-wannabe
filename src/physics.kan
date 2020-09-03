@@ -1,5 +1,6 @@
 import "sdl";
 import "math";
+import "config";
 import "graphics" as g;
 
 type Transform struct {
@@ -30,5 +31,15 @@ def (h: Hitbox) as_absolute_rect(transform: Transform): sdl.Rect {
         y: position.y as i32,
         w: h.size.x as i32 * (transform.scale as i32),
         h: h.size.y as i32 * (transform.scale as i32)
+    };
+}
+
+def tile_rect(transform: Transform, hitbox: Hitbox): sdl.Rect {
+    let scale = (transform.scale * config.tile_size()) as i32;
+    return sdl.Rect {
+        x: transform.position.x as i32 / scale,
+        y: transform.position.y as i32 / scale,
+        w: (hitbox.size.x as u32 / config.tile_size()) as i32,
+        h: (hitbox.size.y as u32 / config.tile_size()) as i32
     };
 }
