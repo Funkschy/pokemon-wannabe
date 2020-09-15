@@ -45,6 +45,9 @@ $(BIN_NAME) : $(KANTAN_FILES)
 	if ! [ -d $(SDL_IMAGE_BUILD_DIR) ]; then \
 		mkdir -p $(SDL_IMAGE_BUILD_DIR) ; \
 		pushd $(SDL_IMAGE_BUILD_DIR) ; \
+		cd .. ; \
+		autoreconf --force --install ; \
+		cd - ; \
 		../configure --prefix=$(SDL_IMAGE_BUILD_DIR) --exec-prefix=$(SDL_IMAGE_BUILD_DIR) && \
 		make -j4 && make install; \
 	fi ;
