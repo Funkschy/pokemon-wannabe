@@ -5,14 +5,32 @@ import "config";
 import "physics";
 import "graphics" as g;
 
-type Object struct {
-    sprite: g.Sprite,
-    spritesheet: g.SpriteSheet,
-    transform: physics.Transform,
-    hitbox: physics.Hitbox
+type ObjectKind enum {
+    Simple, Trigger
 }
 
-def load(renderer: *sdl.Renderer, x: u32, y: u32, w: u32, h: u32, sprite: string): *Object {
+type Object struct {
+    kind: ObjectKind,
+    transform: physics.Transform,
+    hitbox: physics.Hitbox,
+    data: ObjectData
+}
+
+type ObjectData union {
+    simple: SimpleObject,
+    trigger: TriggerObject
+}
+
+type SimpleObject struct {
+    sprite: g.Sprite,
+    spritesheet: g.SpriteSheet
+}
+
+type TriggerObject struct {
+
+}
+
+def load_simple(renderer: *sdl.Renderer, x: u32, y: u32, w: u32, h: u32, sprite: string): *Object {
     let spec = g.spritesheet_spec(w as i32, h as i32, sprite);
     let obj_spritesheet: g.SpriteSheet = undefined;
     if !g.load_spritesheet_from_png(renderer, spec, &obj_spritesheet) {
@@ -22,23 +40,45 @@ def load(renderer: *sdl.Renderer, x: u32, y: u32, w: u32, h: u32, sprite: string
 
     let scale = config.scale() * config.tile_size();
     return new Object {
-        sprite: obj_spritesheet.get(0, 0),
-        spritesheet: obj_spritesheet,
+        kind: ObjectKind.Simple,
         transform: physics.Transform {
             position: math.vec2f(scale * x as f32, scale * y as f32), scale: config.scale()
         },
-        hitbox: physics.hitbox(0, 0, w, h)
+        hitbox: physics.hitbox(0, 0, w, h),
+        data: ObjectData {
+            simple: SimpleObject {
+                sprite: obj_spritesheet.get(0, 0),
+                spritesheet: obj_spritesheet
+            }
+        }
+    };
+}
+
+def init_trigger(x: u32, y: u32, w: u32, h: u32): *Object {
+    let scale = config.scale() * config.tile_size();
+    return new Object {
+        kind: ObjectKind.Trigger,
+        transform: physics.Transform {
+            position: math.vec2f(scale * x as f32, scale * y as f32), scale: config.scale()
+        },
+        hitbox: physics.hitbox(0, 0, w, h),
+        data: ObjectData {
+            trigger: TriggerObject {
+            }
+        }
     };
 }
 
 def (o: *Object) render(renderer: *sdl.Renderer) {
-    let src = sdl.Rect {
-        x: o.transform.position.x as i32,
-        y: o.transform.position.y as i32,
-        w: o.transform.scale as i32 * o.sprite.rect.w,
-        h: o.transform.scale as i32 * o.sprite.rect.h
-    };
-    g.render_sprite(renderer, &o.sprite, src, sdl.RendererFlip.None);
+    if o.kind == ObjectKind.Simple {
+        let src = sdl.Rect {
+            x: o.transform.position.x as i32,
+            y: o.transform.position.y as i32,
+            w: o.transform.scale as i32 * o.data.simple.sprite.rect.w,
+            h: o.transform.scale as i32 * o.data.simple.sprite.rect.h
+        };
+        g.render_sprite(renderer, &o.data.simple.sprite, src, sdl.RendererFlip.None);
+    }
 }
 
 def (o: *Object) abs_rect(): sdl.Rect {

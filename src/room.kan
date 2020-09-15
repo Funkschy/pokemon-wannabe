@@ -18,7 +18,7 @@ type Tile struct {
     data: *void
 }
 
-type World struct {
+type Room struct {
     width_units: u32,
     height_units: u32,
     text_stopped_at: usize,
@@ -32,7 +32,7 @@ type World struct {
     objects: ptrvec.Vec // ptrvec.Vec<*o.Object>
 }
 
-def create(renderer: *sdl.Renderer, width_units: u32, height_units: u32): World {
+def create(renderer: *sdl.Renderer, width_units: u32, height_units: u32): Room {
     let spec = g.spritesheet_spec(config.tile_size() as i32, config.tile_size() as i32, "res/background.png");
     let background_spritesheet: g.SpriteSheet = undefined;
     if !g.load_spritesheet_from_png(renderer, spec, &background_spritesheet) {
@@ -40,7 +40,7 @@ def create(renderer: *sdl.Renderer, width_units: u32, height_units: u32): World 
         return undefined;
     }
 
-    return World {
+    return Room {
         width_units: width_units,
         height_units: height_units,
         text_stopped_at: 0,
@@ -55,36 +55,36 @@ def create(renderer: *sdl.Renderer, width_units: u32, height_units: u32): World 
     };
 }
 
-def (w: *World) free() {
-    delete w.tiles;
-    for let i: usize = 0; i < w.npcs.len; i += 1 {
-        let npc = w.npcs.get(i) as *npc.Npc;
+def (r: *Room) free() {
+    delete r.tiles;
+    for let i: usize = 0; i < r.npcs.len; i += 1 {
+        let npc = r.npcs.get(i) as *npc.Npc;
         npc.free();
     }
-    for let i: usize = 0; i < w.objects.len; i += 1 {
-        delete w.objects.get(i);
+    for let i: usize = 0; i < r.objects.len; i += 1 {
+        delete r.objects.get(i);
     }
-    w.npcs.free();
-    w.objects.free();
-    w.textbox.free();
-    w.ground.free();
+    r.npcs.free();
+    r.objects.free();
+    r.textbox.free();
+    r.ground.free();
 }
 
-def (w: *World) add_object(obj: *o.Object) {
-    w.objects.push_ptr(obj as *void);
+def (r: *Room) add_object(obj: *o.Object) {
+    r.objects.push_ptr(obj as *void);
     let obj_rect = obj.tile_rect();
 
     for let y = obj_rect.y; y < obj_rect.y + obj_rect.h; y += 1 {
         for let x = obj_rect.x; x < obj_rect.x + obj_rect.w; x += 1 {
-            let idx = y as u32 * w.width_units + x as u32;
+            let idx = y as u32 * r.width_units + x as u32;
 
-            *(w.tiles + idx) = Tile { kind: TileState.Object, data: obj as *void };
+            *(r.tiles + idx) = Tile { kind: TileState.Object, data: obj as *void };
         }
     }
 }
 
-def (w: *World) add_npc(new_npc: *npc.Npc) {
-    w.npcs.push_ptr(new_npc as *void);
+def (r: *Room) add_npc(new_npc: *npc.Npc) {
+    r.npcs.push_ptr(new_npc as *void);
     let npc_rect = new_npc.tile_rect();
     let kind = TileState.HasNpc;
     if new_npc.kind == npc.Kind.WithDialog {
@@ -93,43 +93,43 @@ def (w: *World) add_npc(new_npc: *npc.Npc) {
 
     for let y = npc_rect.y; y < npc_rect.y + npc_rect.h; y += 1 {
         for let x = npc_rect.x; x < npc_rect.x + npc_rect.w; x += 1 {
-            let idx = y as u32 * w.width_units + x as u32;
+            let idx = y as u32 * r.width_units + x as u32;
 
-            *(w.tiles + idx) = Tile { kind: kind, data: new_npc as *void };
+            *(r.tiles + idx) = Tile { kind: kind, data: new_npc as *void };
         }
     }
 }
 
-def (w: *World) get_tile(x: u32, y: u32): Tile {
-    let idx = y * w.width_units + x;
-    return *(w.tiles + idx);
+def (r: *Room) get_tile(x: u32, y: u32): Tile {
+    let idx = y * r.width_units + x;
+    return *(r.tiles + idx);
 }
 
-def (w: *World) set_text(text: str.View) {
-    w.current_text = text;
-    w.text_stopped_at = 0;
+def (r: *Room) set_text(text: str.View) {
+    r.current_text = text;
+    r.text_stopped_at = 0;
 }
 
-def (w: *World) scroll_text(): bool {
-    if w.current_text.len == 0 || w.text_stopped_at == 0 {
+def (r: *Room) scroll_text(): bool {
+    if r.current_text.len == 0 || r.text_stopped_at == 0 {
         return false;
     }
 
-    w.current_text.data += w.text_stopped_at;
-    w.current_text.len -= w.text_stopped_at;
-    return w.current_text.len == 0 || w.text_stopped_at == 0;
+    r.current_text.data += r.text_stopped_at;
+    r.current_text.len -= r.text_stopped_at;
+    return r.current_text.len == 0 || r.text_stopped_at == 0;
 }
 
-def (w: *World) render_background(renderer: *sdl.Renderer) {
-    let sprite = &w.current_wall;
+def (r: *Room) render_background(renderer: *sdl.Renderer) {
+    let sprite = &r.current_wall;
     let scale = config.tile_size() * config.scale() as i32;
 
-    for let y: u32 = 0; y < w.height_units; y += 1 {
+    for let y: u32 = 0; y < r.height_units; y += 1 {
         if y > 1 {
-            sprite = &w.current_ground;
+            sprite = &r.current_ground;
         }
 
-        for let x: u32 = 0; x < w.width_units; x += 1 {
+        for let x: u32 = 0; x < r.width_units; x += 1 {
             let dest = sdl.Rect {
                 x: x as i32 * scale,
                 y: y as i32 * scale,
@@ -152,10 +152,10 @@ def (w: *World) render_background(renderer: *sdl.Renderer) {
     }
 }
 
-def (w: *World) render_hud(renderer: *sdl.Renderer) {
-    if w.current_text.len == 0 {
+def (r: *Room) render_hud(renderer: *sdl.Renderer) {
+    if r.current_text.len == 0 {
         return;
     }
 
-    w.text_stopped_at = w.textbox.render(renderer, w.current_text, 5);
+    r.text_stopped_at = r.textbox.render(renderer, r.current_text, 5);
 }

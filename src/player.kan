@@ -2,7 +2,7 @@ import "io";
 import "sdl";
 import "npc";
 import "math";
-import "world";
+import "room";
 import "config";
 import "physics";
 import "input" as i;
@@ -77,7 +77,7 @@ def (p: *Player) free() {
     p.spritesheet.free();
 }
 
-def (p: *Player) update(ts: f32, input: *i.InputState, w: *world.World) {
+def (p: *Player) update(ts: f32, input: *i.InputState, w: *room.Room) {
     p.velocity = math.zero_vec2f();
     p.current_animation.update(ts);
     p.current_animation = &p.idle_animation;
@@ -115,7 +115,7 @@ def (p: *Player) update(ts: f32, input: *i.InputState, w: *world.World) {
         p.last_interact = now;
 
         if w.current_text.len == 0 {
-            let hitbox = p.hitbox.as_absolute_rect(p.transform);
+            let hitbox = p.abs_rect();
             hitbox.x /= (config.scale() * config.tile_size()) as i32;
             hitbox.y /= (config.scale() * config.tile_size()) as i32;
 
@@ -123,7 +123,7 @@ def (p: *Player) update(ts: f32, input: *i.InputState, w: *world.World) {
                 for let x = hitbox.x - 1; x < hitbox.x + 3; x += 1 {
                     let tile = w.get_tile(x as u32, y as u32);
 
-                    if tile.kind == world.TileState.HasDialogNpc {
+                    if tile.kind == room.TileState.HasDialogNpc {
                         let npc = tile.data as *npc.Npc;
                         w.set_text(npc.data.with_dialog.dialog_text.view());
                         p.interacting = true;
@@ -139,6 +139,10 @@ def (p: *Player) update(ts: f32, input: *i.InputState, w: *world.World) {
             p.interacting = false;
         }
     }
+}
+
+def (p: *Player) abs_rect(): sdl.Rect {
+    return p.hitbox.as_absolute_rect(p.transform);
 }
 
 def (p: *Player) resolve_collision(other: sdl.Rect) {
