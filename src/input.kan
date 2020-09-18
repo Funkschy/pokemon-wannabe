@@ -77,13 +77,13 @@ def (i: *InputState) update_input_map(event: sdl.Event) {
     // escape
     if event.key_event.keysym.scancode == 41 {
         i.set_action_pressed(Action.Quit, is_keydown);
-    } else if event.key_event.keysym.sym == 'a' {
+    } else if event.key_event.keysym.sym == 'a' || event.key_event.keysym.scancode == 80 {
         i.set_action_pressed(Action.Left, is_keydown);
-    } else if event.key_event.keysym.sym == 'd' {
+    } else if event.key_event.keysym.sym == 'd' || event.key_event.keysym.scancode == 79 {
         i.set_action_pressed(Action.Right, is_keydown);
-    } else if event.key_event.keysym.sym == 'w' {
+    } else if event.key_event.keysym.sym == 'w' || event.key_event.keysym.scancode == 82 {
         i.set_action_pressed(Action.Up, is_keydown);
-    } else if event.key_event.keysym.sym == 's' {
+    } else if event.key_event.keysym.sym == 's' || event.key_event.keysym.scancode == 81 {
         i.set_action_pressed(Action.Down, is_keydown);
     } else if event.key_event.keysym.sym == ' ' {
         i.set_action_pressed(Action.Interact, is_keydown);
