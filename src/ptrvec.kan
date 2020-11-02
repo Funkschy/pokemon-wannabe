@@ -72,7 +72,7 @@ def (v: *Vec) unsafe_get(i: usize): *void {
 }
 
 def (v: *Vec) set(i: usize, elem: *void): void {
-    dbg.assert_fmt(i >= 0 && i < v.cap, "out of bounds set: %d", i);
+    dbg.assert(i >= 0 && i < v.cap, "out of bounds set");
 
     // sizeof(*v.elements) is already 8, so we don't need to multiply
     *(v.elements + i) = elem;

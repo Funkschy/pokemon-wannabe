@@ -30,7 +30,7 @@ type TypedArena struct {
 def typed(elem_size: usize): TypedArena {
     // this number is rather arbitrary, however an arena which cannot hold at least 8 items seems
     // kinda useless
-    dbg.assert_fmt(elem_size * 8 < region_size, "arena cannot hold 8 items: %zu", elem_size * 8);
+    dbg.assert(elem_size * 8 < region_size, "arena cannot hold 8 items");
 
     let first = region();
 

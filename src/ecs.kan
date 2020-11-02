@@ -1,0 +1,165 @@
+import "num";
+import "vec";
+import "ptrvec";
+import "components";
+import "systems" as sys;
+
+// component registration
+import "physics";
+import "graphics";
+
+type Entity struct {
+    value: u32
+}
+
+// a simple bitmap, which marks which components belong to an entity
+type Signature struct {
+    // this must have at least ComponentKind.len bits
+    bits: u32
+}
+
+def signature(): Signature {
+    return Signature { bits: 0 };
+}
+
+def (s: Signature) with(component: components.ComponentKind): Signature {
+    let mask = num.pow(2, component as i32 as i64) as u32;
+    s.bits |= mask;
+    return s;
+}
+
+def (s: Signature) has(other: Signature): bool {
+    return s.bits & other.bits == other.bits;
+}
+
+type ECS struct {
+    // accessed by Entity.value, holds Signatures
+    signatures:     vec.Vec,    // vec.Vec[Signature]
+    available_ents: vec.Vec,    // vec.Vec[Entity]
+    components:     vec.Vec,    // vec.Vec[ComponentList]
+    systems:        ptrvec.Vec  // ptrvec.Vec[*sys.System]
+}
+
+let num_ents: usize = 4096;
+
+def create_ecs(): ECS {
+    let ecs = ECS {
+        signatures:     vec.with_cap(sizeof Signature, num_ents),
+        available_ents: vec.with_cap(sizeof Entity, num_ents),
+        components:     vec.with_cap(sizeof ComponentList, components.ComponentKind.len as usize),
+        systems:        ptrvec.create()
+    };
+
+    ecs.set_component_list(0, create_component_list(sizeof physics.Transform));
+    ecs.set_component_list(1, create_component_list(sizeof physics.Hitbox));
+    ecs.set_component_list(2, create_component_list(sizeof graphics.Animation));
+    ecs.set_component_list(3, create_component_list(sizeof graphics.Sprite));
+
+    for let i: usize = 0; i < num_ents; i += 1 {
+        let e = Entity { value: i as u32 };
+        ecs.available_ents.push(&e as *void);
+        let sig = Signature { bits: 0 };
+        ecs.signatures.push(&sig as *void);
+    }
+
+    return ecs;
+}
+
+def (ecs: *ECS) free() {
+    ecs.signatures.free();
+    ecs.available_ents.free();
+
+    for let i: usize = 0; i < ecs.num_systems(); i += 1 {
+        ecs.get_system(i).free();
+    }
+    ecs.systems.free();
+
+    for let i: usize = 0; i < ecs.components.len; i += 1 {
+        let cl = ecs.components.get_ptr(i) as *ComponentList;
+        cl.free();
+    }
+
+    ecs.components.free();
+}
+
+def (ecs: *ECS) set_component_list(i: usize, cl: ComponentList) {
+    ecs.components.set(i, &cl as *void);
+}
+
+def (ecs: *ECS) create_entity(): Entity {
+    let e: Entity = undefined;
+    ecs.available_ents.pop_last(&e as *void);
+    return e;
+}
+
+def (ecs: *ECS) add_component_to_entity(e: Entity, kind: components.ComponentKind, c: *void) {
+    let cl = ecs.components.get_ptr(kind as i32 as usize) as *ComponentList;
+    cl.add_component_to_entity(e, c);
+    let mask = num.pow(2, kind as i32 as i64) as u32;
+    let sig = ecs.signatures.get_ptr(e.value as usize) as *Signature;
+    sig.bits |= mask;
+
+    // update systems
+    for let i: usize = 0; i < ecs.num_systems(); i += 1 {
+        let sys = ecs.get_system(i);
+        if sys.relevant_components.has(*sig) {
+            sys.entities.push(&e as *void);
+        }
+    }
+}
+
+def (ecs: *ECS) get_component(e: Entity, kind: components.ComponentKind): *void {
+    let cl = ecs.components.get_ptr(kind as i32 as usize) as *ComponentList;
+    return cl.get_component(e);
+}
+
+def (ecs: *ECS) add_system(s: *sys.System) {
+    ecs.systems.push_ptr(s as *void);
+}
+
+def (ecs: *ECS) num_systems(): usize {
+    return ecs.systems.len;
+}
+
+def (ecs: *ECS) get_system(i: usize): *sys.System {
+    return ecs.systems.get(i) as *sys.System;
+}
+
+// ComponentList[C]
+type ComponentList struct {
+    inner:      vec.Vec, // vec.Vec[C]
+    ent_to_idx: vec.Vec, // vec.Vec[usize]
+    idx_to_ent: vec.Vec  // vec.Vec[Entity]
+}
+
+def create_component_list(elem_size: usize): ComponentList {
+    let cl =  ComponentList {
+        inner:      vec.create(elem_size),
+        ent_to_idx: vec.create(sizeof usize),
+        idx_to_ent: vec.create(sizeof Entity)
+    };
+
+    return cl;
+}
+
+def (cl: *ComponentList) free() {
+    cl.inner.free();
+    cl.ent_to_idx.free();
+    cl.idx_to_ent.free();
+}
+
+def (cl: *ComponentList) add_component_to_entity(e: Entity, c: *void) {
+    let idx = cl.inner.len;
+    cl.inner.push(c);
+    cl.ent_to_idx.set(e.value as usize, &idx as *void);
+    cl.idx_to_ent.set(idx, &e as *void);
+
+    // set unused elements to 0b11111...
+    cl.ent_to_idx.memset_unused(~0);
+    cl.idx_to_ent.memset_unused(~0);
+}
+
+def (cl: *ComponentList) get_component(e: Entity): *void {
+    let idx = cl.ent_to_idx.get_ptr(e.value as usize) as *usize;
+    return cl.inner.get_ptr(*idx);
+}

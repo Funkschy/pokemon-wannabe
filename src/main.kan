@@ -3,14 +3,17 @@ import "sdl";
 import "str";
 import "npc";
 import "room";
+import "math";
 import "config";
+import "ecs" as _;
 import "input" as i;
-import "player" as p;
+import "systems" as s;
 import "objects" as o;
+import "physics" as p;
 import "graphics" as g;
-import "behaviour" as b;
+import "components" as _;
 
-delegate def MainLoop(arg: *Game);
+delegate def MainLoop(arg: *Game): bool;
 extern def emscripten_set_main_loop_arg(loop: MainLoop, arg: *Game, fps: i32, simulate_inf_loop: i32);
 extern def exit(rc: i32);
 
@@ -18,21 +21,19 @@ type Game struct {
     debug: bool,
     renderer: *sdl.Renderer,
     window: *sdl.Window,
-    room: room.Room,
     last: i64,
     input: i.InputState,
-
-    player: p.Player
+    ecs: ECS
 }
 
-def mainloop(g: *Game) {
+def mainloop(g: *Game): bool {
     let e: sdl.Event = undefined;
     let delta = sdl.delta(g.last) as f32;
     g.last = sdl.now();
 
     while e.poll() != 0 {
         if e.common.kind == sdl.EventKind.Quit {
-            exit(0);
+            return false;
         }
 
         if e.common.kind == sdl.EventKind.KeyDown && e.key_event.keysym.sym == 'g' {
@@ -44,48 +45,48 @@ def mainloop(g: *Game) {
         g.input.update_input_map(e);
     }
 
-    g.player.update(delta, &g.input, &g.room);
-
-    g.renderer.clear();
-    g.room.render_background(g.renderer);
-
-    if g.debug {
-        g.renderer.set_draw_color(255, 0, 0, 255);
+    for let i: usize = 0; i < g.ecs.num_systems(); i += 1 {
+        g.ecs.get_system(i).update(delta);
     }
 
-    for let i: usize = 0; i < g.room.objects.len; i += 1 {
-        let obj = g.room.objects.get(i) as *o.Object;
-        g.player.resolve_collision(obj.abs_rect());
-        obj.render(g.renderer);
+    // g.player.update(delta, &g.input, &g.room);
 
-        if g.debug {
-            let rect = obj.abs_rect();
-            g.renderer.draw_rect(&rect);
-        }
-    }
+    // g.room.render_background(g.renderer);
 
-    for let i: usize = 0; i < g.room.npcs.len; i += 1 {
-        let npc = g.room.npcs.get(i) as *npc.Npc;
-        npc.update(delta);
-        g.player.resolve_collision(npc.abs_rect());
-        npc.render(g.renderer);
+    // if g.debug {
+    //     g.renderer.set_draw_color(255, 0, 0, 255);
+    // }
 
-        if g.debug {
-            let rect = npc.abs_rect();
-            g.renderer.draw_rect(&rect);
-        }
-    }
+    // for let i: usize = 0; i < g.room.objects.len; i += 1 {
+    //     let obj = g.room.objects.get(i) as *o.Object;
+    //     g.player.resolve_collision(obj.abs_rect());
+    //     obj.render(g.renderer);
 
-    g.player.render(g.renderer);
-    if g.debug {
-        let rect = g.player.abs_rect();
-        g.renderer.draw_rect(&rect);
-    }
+    //     if g.debug {
+    //         let rect = obj.abs_rect();
+    //         g.renderer.draw_rect(&rect);
+    //     }
+    // }
 
-    g.renderer.set_draw_color(0, 19, 26, 255);
-    g.room.render_hud(g.renderer);
+    // for let i: usize = 0; i < g.room.npcs.len; i += 1 {
+    //     let npc = g.room.npcs.get(i) as *npc.Npc;
+    //     npc.update(delta);
+    //     g.player.resolve_collision(npc.abs_rect());
+    //     npc.render(g.renderer);
 
-    g.renderer.present();
+    //     if g.debug {
+    //         let rect = npc.abs_rect();
+    //         g.renderer.draw_rect(&rect);
+    //     }
+    // }
+
+    // g.player.render(g.renderer);
+    // if g.debug {
+    //     let rect = g.player.abs_rect();
+    //     g.renderer.draw_rect(&rect);
+    // }
+
+    return true;
 }
 
 def main() {
@@ -137,51 +138,76 @@ def main() {
     game.renderer = renderer;
     game.window = window;
 
-    game.room = room.create(
-        renderer,
-        config.width() / config.tile_size(),
-        config.height() / config.tile_size()
-    );
-    defer game.room.free();
-    let room = &game.room;
+    // game.room = room.create(
+    //     renderer,
+    //     config.width() / config.tile_size(),
+    //     config.height() / config.tile_size()
+    // );
+    // defer game.room.free();
+    // let room = &game.room;
 
-    game.player = p.load(renderer, width / 2, height / 2);
-    defer game.player.free();
-    game.player.current_animation = &game.player.idle_animation;
+    // game.player = p.load(renderer, width / 2, height / 2);
+    // defer game.player.free();
+    // game.player.current_animation = &game.player.idle_animation;
 
-    let cat = npc.load(renderer, npc.Kind.WithDialog, "res/cat.png", 8, 3, 1);
-    cat.data.with_dialog.dialog_text = str.from(
-        "Meow\n\n\nHey Kid\nyou got some Catnip?"
-    );
-    cat.data.with_dialog.basic.flip = sdl.RendererFlip.Horizontal;
-    room.add_npc(cat);
+    // let cat = npc.load(renderer, npc.Kind.WithDialog, "res/cat.png", 8, 3, 1);
+    // cat.data.with_dialog.dialog_text = str.from(
+    //     "Meow\n\n\nHey Kid\nyou got some Catnip?"
+    // );
+    // cat.data.with_dialog.basic.flip = sdl.RendererFlip.Horizontal;
+    // room.add_npc(cat);
 
-    let thot = npc.load(renderer, npc.Kind.WithDialog, "res/thot.png", 12, 14, 5);
-    thot.data.with_dialog.dialog_text = str.from(
-        "Follow me on twitch, Instagram, Snapchat, Twitter, Youtube\nand onlyfans"
-    );
-    room.add_npc(thot);
+    // let thot = npc.load(renderer, npc.Kind.WithDialog, "res/thot.png", 12, 14, 5);
+    // thot.data.with_dialog.dialog_text = str.from(
+    //     "Follow me on twitch, Instagram, Snapchat, Twitter, Youtube\nand onlyfans"
+    // );
+    // room.add_npc(thot);
 
-    let goblin = npc.load(renderer, npc.Kind.Enemy, "res/goblin.png", 1, 3, 4);
-    goblin.data.enemy.behaviour = b.follow_player();
-    room.add_npc(goblin);
+    // let goblin = npc.load(renderer, npc.Kind.Enemy, "res/goblin.png", 1, 3, 4);
+    // goblin.data.enemy.behaviour = b.follow_player();
+    // room.add_npc(goblin);
 
-    let bed = o.load_simple(renderer, 1, 1, 16, 32, "res/bed.png");
-    room.add_object(bed);
-    let clock = o.load_simple(renderer, 18, 0, 16, 32, "res/clock.png");
-    room.add_object(clock);
-    let table = o.load_simple(renderer, 10, 9, 16, 32, "res/table.png");
-    room.add_object(table);
+    // let bed = o.load_simple(renderer, 1, 1, 16, 32, "res/bed.png");
+    // room.add_object(bed);
+    // let clock = o.load_simple(renderer, 18, 0, 16, 32, "res/clock.png");
+    // room.add_object(clock);
+    // let table = o.load_simple(renderer, 10, 9, 16, 32, "res/table.png");
+    // room.add_object(table);
 
-    let wall = o.init_trigger(0, 0, config.width(), 16);
-    room.add_object(wall);
+    // let wall = o.init_trigger(0, 0, config.width(), 16);
+    // room.add_object(wall);
+
+    let spec = g.spritesheet_spec(16, 16, "res/girl.png");
+    let player_spritesheet: g.SpriteSheet = undefined;
+    if !g.load_spritesheet_from_png(renderer, spec, &player_spritesheet) {
+        io.printf("Could not load sprite: %s\n", sdl.get_error());
+        return;
+    }
+    defer player_spritesheet.free();
+
+    let player_idle = g.create_animation(&player_spritesheet, 4, 0);
+    let player_sprite = player_spritesheet.get(0, 0);
+    let initial_pos = math.vec2f(5 as f32, 5 as f32);
+    let player_transform = p.Transform { position: initial_pos, scale: config.scale() };
+
+    game.ecs = create_ecs();
+    defer game.ecs.free();
+
+    let render_sys = s.animation_render_system(&game.ecs, game.renderer);
+    game.ecs.add_system(&render_sys.s);
+
+    let player = game.ecs.create_entity();
+    game.ecs.add_component_to_entity(player, ComponentKind.Animation, &player_idle as *void);
+    game.ecs.add_component_to_entity(player, ComponentKind.Transform, &player_transform as *void);
 
     game.last = sdl.now();
     game.input = i.init_input_map();
+    defer game.input.free();
 
-    // while true {
-    //     mainloop(&game);
-    // }
+    let running = true;
+    while running {
+        running = mainloop(&game);
+    }
 
-    emscripten_set_main_loop_arg(&mainloop, &game, -1, 1);
+    // emscripten_set_main_loop_arg(&mainloop, &game, -1, 1);
 }

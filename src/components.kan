@@ -1,0 +1,6 @@
+type ComponentKind enum {
+    Transform,
+    Hitbox,
+    Animation,
+    Sprite
+}

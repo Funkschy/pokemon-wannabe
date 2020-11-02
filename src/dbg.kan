@@ -1,10 +1,11 @@
 import "io";
 import "libc";
 
-extern def assert_fmt(condition: bool, fmt: string, ...);
-
 def assert(condition: bool, err_text: string) {
-    assert_fmt(condition, err_text);
+    if !condition {
+        io.printf("%s\n", err_text);
+        libc.abort();
+    }
 }
 
 def unreachable() {

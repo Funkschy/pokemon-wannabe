@@ -1,0 +1,111 @@
+import "sdl";
+import "vec";
+import "ecs" as _;
+import "physics" as p;
+import "graphics" as g;
+import "components" as _;
+
+delegate def UpdateFn(s: *System, ts: f32);
+
+type System struct {
+    relevant_components: Signature,
+    // all entities relevant for this system. Has to be updated if new entities are created
+    entities: vec.Vec, // vec.Vec[Entity]
+    ecs: *ECS,
+    update_fn: UpdateFn
+}
+
+def (s: *System) update(ts: f32) {
+    s.update_fn(s, ts);
+}
+
+def (s: *System) free() {
+    s.entities.free();
+}
+
+type SpriteRenderSystem struct {
+    s: System,
+    r: *sdl.Renderer
+}
+
+def sprite_render_system(ecs: *ECS, r: *sdl.Renderer): SpriteRenderSystem {
+    let sig = signature().with(ComponentKind.Transform).with(ComponentKind.Sprite);
+    let sys = System {
+        relevant_components: sig,
+        entities: vec.create(sizeof Entity),
+        ecs: ecs,
+        update_fn: &sprite_render_system_update
+    };
+
+    return SpriteRenderSystem {
+        s: sys,
+        r: r
+    };
+}
+
+def sprite_render_system_update(s: *System, ts: f32) {
+    let rs = s as *SpriteRenderSystem;
+    rs.r.clear();
+
+    for let i: usize = 0; i < rs.s.entities.len; i += 1 {
+        let e = *(rs.s.entities.get_ptr(i) as *Entity);
+        let sprite = rs.s.ecs.get_component(e, ComponentKind.Sprite) as *g.Sprite;
+        let transform = rs.s.ecs.get_component(e, ComponentKind.Transform) as *p.Transform;
+
+        let src = sdl.Rect {
+            x: transform.position.x as i32,
+            y: transform.position.y as i32,
+            w: transform.scale as i32 * 16,
+            h: transform.scale as i32 * 16
+        };
+        g.render_sprite(rs.r, sprite, src, sdl.RendererFlip.None);
+    }
+
+    rs.r.set_draw_color(0, 19, 26, 255);
+    rs.r.present();
+}
+
+type AnimationRenderSystem struct {
+    s: System,
+    r: *sdl.Renderer
+}
+
+def animation_render_system(ecs: *ECS, r: *sdl.Renderer): AnimationRenderSystem {
+    let sig = signature().with(ComponentKind.Transform).with(ComponentKind.Animation);
+    let sys = System {
+        relevant_components: sig,
+        entities: vec.create(sizeof Entity),
+        ecs: ecs,
+        update_fn: &animation_render_system_update
+    };
+
+    return AnimationRenderSystem {
+        s: sys,
+        r: r
+    };
+}
+
+def animation_render_system_update(s: *System, ts: f32) {
+    let rs = s as *AnimationRenderSystem;
+    rs.r.clear();
+
+    for let i: usize = 0; i < rs.s.entities.len; i += 1 {
+        let e = *(rs.s.entities.get_ptr(i) as *Entity);
+        let animation = rs.s.ecs.get_component(e, ComponentKind.Animation) as *g.Animation;
+        animation.update(ts);
+
+        let transform = rs.s.ecs.get_component(e, ComponentKind.Transform) as *p.Transform;
+
+        let src = sdl.Rect {
+            x: transform.position.x as i32,
+            y: transform.position.y as i32,
+            w: transform.scale as i32 * 16,
+            h: transform.scale as i32 * 16
+        };
+
+        g.render_sprite(rs.r, animation.current_sprite(), src, sdl.RendererFlip.None);
+    }
+
+    rs.r.set_draw_color(0, 19, 26, 255);
+    rs.r.present();
+}

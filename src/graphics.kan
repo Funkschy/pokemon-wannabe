@@ -106,7 +106,7 @@ def create_animation(spritesheet: *SpriteSheet, sprite_count: u32, start: u32): 
     return Animation {
         num_sprites: sprite_count,
         frame_pos: 0,
-        frame_change_time: 128.0,
+        frame_change_time: 300.0,
         delta_sum: 0.0,
         sprites: sprites
     };

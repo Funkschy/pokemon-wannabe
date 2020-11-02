@@ -44,13 +44,30 @@ def (v: *Vec) init_zero() {
 }
 
 def (v: *Vec) set(i: usize, elem: *void) {
-    dbg.assert(i >= 0 && i < v.cap, "out of bounds set");
+    dbg.assert(i >= 0, "out of bounds set");
+    while i >= v.cap {
+        v.resize();
+    }
 
     libc.memcpy(v.elements + i * v.elem_size, elem, v.elem_size);
     // assume all values in between to be initialized
     if i >= v.len {
         v.len = i + 1;
     }
+}
+
+def (v: *Vec) memset_unused(value: u32) {
+    if v.len < v.cap {
+        v.memset(v.len, v.cap, value);
+    }
+}
+
+// [start, end)
+def (v: *Vec) memset(start_idx: usize, end_idx: usize, value: u32) {
+    dbg.assert(start_idx < end_idx, "start_idx >= end_idx");
+    let start = v.elements + start_idx * v.elem_size;
+    let len = (end_idx - 1) * v.elem_size;
+    libc.memset(start, value, len);
 }
 
 def (v: *Vec) get(i: usize, ptr: *void): bool {
@@ -68,6 +85,12 @@ def (v: *Vec) get_ptr(i: usize): *void {
     }
 
     return null;
+}
+
+def (v: *Vec) pop_last(mem: *void) {
+    dbg.assert(v.len > 0, "popping empty vector");
+    libc.memcpy(mem, v.get_ptr(v.len - 1), v.elem_size);
+    v.len -= 1;
 }
 
 def (v: *Vec) resize() {
