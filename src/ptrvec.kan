@@ -1,4 +1,4 @@
-import "std";
+import "libc";
 import "dbg";
 
 type Vec struct {
@@ -18,25 +18,21 @@ def with_cap(cap: usize): Vec {
 }
 
 def (v: *Vec) zero() {
-    std.memset(v.elements as *void, 0, v.len * sizeof *void);
+    libc.memset(v.elements as *void, 0, v.len * sizeof *void);
 }
 
 def (v: *Vec) is_empty(): bool {
     return v.len == 0;
 }
 
-def (v: *Vec) pop(): *void {
-    if !v.is_empty() {
-        let elem = v.get(0);
-        v.len = v.len - 1;
-        std.memmove(
-            v.elements as *void,
-            (v.elements + 1) as *void,
-            v.len * sizeof **void
-        );
-        return elem;
+def (v: *Vec) pop_last(): *void {
+    if v.is_empty() {
+        return null;
     }
-    return null;
+
+    let elem = v.get(v.len - 1);
+    v.len -= 1;
+    return elem;
 }
 
 def (v: *Vec) append(other: *Vec): void {
@@ -46,7 +42,7 @@ def (v: *Vec) append(other: *Vec): void {
 
     let new_len = v.len + other.len;
     v.resize_s(new_len);
-    std.memcpy(
+    libc.memcpy(
         (v.elements + v.len) as *void,
         other.elements as *void,
         other.len * sizeof *void
@@ -76,6 +72,8 @@ def (v: *Vec) unsafe_get(i: usize): *void {
 }
 
 def (v: *Vec) set(i: usize, elem: *void): void {
+    dbg.assert_fmt(i >= 0 && i < v.cap, "out of bounds set: %d", i);
+
     // sizeof(*v.elements) is already 8, so we don't need to multiply
     *(v.elements + i) = elem;
     // assume all values in between to be initialized
@@ -91,10 +89,10 @@ def (v: *Vec) resize_s(size: usize): void {
 
     v.cap = size;
     if v.elements == null {
-        v.elements = std.calloc(v.cap, sizeof **void) as **void;
+        v.elements = libc.calloc(v.cap, sizeof **void) as **void;
     } else {
-        v.elements = std.realloc(v.elements as *void, v.cap * sizeof **void) as **void;
-        std.memset((v.elements + v.len) as *void, 0, (v.cap - v.len) * sizeof **void);
+        v.elements = libc.realloc(v.elements as *void, v.cap * sizeof **void) as **void;
+        libc.memset((v.elements + v.len) as *void, 0, (v.cap - v.len) * sizeof **void);
     }
 }
 

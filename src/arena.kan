@@ -1,0 +1,79 @@
+import "dbg";
+import "libc";
+import "ptrvec";
+
+// the size of the Region (8 + 8 + 4080) is 4096 aka the standard page size on linux
+let region_size: usize = 4080;
+type Region struct {
+    next: *Region,
+    len: usize,
+    data: [4080]u8
+}
+
+def region(): *Region {
+    let region = libc.malloc(sizeof Region) as *Region;
+    region.next = null;
+    region.len = 0;
+    return region;
+}
+
+// Most of the memory that is needed during compilation comes from an arena.
+// An Arena is just a linked list of memory chunks.
+// This makes managing (especially freeing) memory really easy and also improves performance,
+// because less malloc/free calls are needed
+type TypedArena struct {
+    elem_size: usize,
+    first: *Region,
+    last: *Region
+}
+
+def typed(elem_size: usize): TypedArena {
+    // this number is rather arbitrary, however an arena which cannot hold at least 8 items seems
+    // kinda useless
+    dbg.assert_fmt(elem_size * 8 < region_size, "arena cannot hold 8 items: %zu", elem_size * 8);
+
+    let first = region();
+
+    return TypedArena {
+        elem_size: elem_size,
+        first: first,
+        last: first
+    };
+}
+
+def (a: *TypedArena) alloc(): *void {
+    if a.last.len + a.elem_size > region_size {
+        let new_region = region();
+        a.last.next = new_region;
+        a.last = new_region;
+    }
+
+    let ptr = &a.last.data[0] + a.last.len;
+    a.last.len += a.elem_size;
+    return ptr as *void;
+}
+
+def (a: *TypedArena) free() {
+    let region = a.first;
+    while region != null {
+        let next = region.next;
+        delete region;
+        region = next;
+    }
+}
+
+delegate def Destructor(elem: *void);
+// frees the arena, but also runs the Destructor function on every element
+def (a: *TypedArena) free_destructor(destructor: Destructor) {
+    let region = a.first;
+    while region != null {
+        let next = region.next;
+
+        for let i: usize = 0; i < region.len; i += a.elem_size {
+            destructor(&region.data[i] as *void);
+        }
+
+        delete region;
+        region = next;
+    }
+}

@@ -8,6 +8,7 @@ import "input" as i;
 import "player" as p;
 import "objects" as o;
 import "graphics" as g;
+import "behaviour" as b;
 
 delegate def MainLoop(arg: *Game);
 extern def emscripten_set_main_loop_arg(loop: MainLoop, arg: *Game, fps: i32, simulate_inf_loop: i32);
@@ -156,11 +157,14 @@ def main() {
     room.add_npc(cat);
 
     let thot = npc.load(renderer, npc.Kind.WithDialog, "res/thot.png", 12, 14, 5);
-
     thot.data.with_dialog.dialog_text = str.from(
         "Follow me on twitch, Instagram, Snapchat, Twitter, Youtube\nand onlyfans"
     );
     room.add_npc(thot);
+
+    let goblin = npc.load(renderer, npc.Kind.Enemy, "res/goblin.png", 1, 3, 4);
+    goblin.data.enemy.behaviour = b.follow_player();
+    room.add_npc(goblin);
 
     let bed = o.load_simple(renderer, 1, 1, 16, 32, "res/bed.png");
     room.add_object(bed);

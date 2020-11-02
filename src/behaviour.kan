@@ -1,0 +1,40 @@
+type BehaviourKind enum {
+    DoNothing, FollowPlayer
+}
+
+
+type Behaviour struct {
+    kind: BehaviourKind,
+    data: BehaviourData
+}
+
+type BehaviourData union {
+    follow_player: FollowPlayer
+}
+
+def do_nothing(): Behaviour {
+    return Behaviour { kind: BehaviourKind.DoNothing, data: undefined };
+}
+
+def follow_player(): Behaviour {
+    return Behaviour { kind: BehaviourKind.FollowPlayer, data: undefined };
+}
+
+def (b: *Behaviour) act() {
+    if b.kind == BehaviourKind.DoNothing {
+        return;
+    }
+
+    if b.kind == BehaviourKind.FollowPlayer {
+        b.data.follow_player.act();
+    }
+}
+
+type FollowPlayer struct {
+
+}
+
+def (f: *FollowPlayer) act() {
+    import "io";
+    io.printf("following\n");
+}

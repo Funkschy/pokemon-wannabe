@@ -12,22 +12,7 @@ EMCC_PRELOADS = --use-preload-plugins $(addprefix --preload-file ,$(shell find r
 
 KANTAN = ~/Documents/programming/kantan/compiler/compiler
 #KANTAN = kantan
-KANTAN_FILES = src/dbg.kan \
-			   src/config.kan \
-			   src/graphics.kan \
-			   src/input.kan \
-			   src/main.kan \
-			   src/math.kan \
-			   src/npc.kan \
-			   src/objects.kan \
-			   src/physics.kan \
-			   src/player.kan \
-			   src/ptrvec.kan \
-			   src/sdl.kan \
-			   src/std.kan \
-			   src/str.kan \
-			   src/text.kan \
-			   src/room.kan
+KANTAN_FILES = $(shell find src -name '*.kan')
 OBJ = game.o
 
 index.js : $(KANTAN_FILES)

@@ -1,57 +1,69 @@
-import "std";
-
-// TODO: remove these, when we finally have an isize/usize type
-extern def strlen(s: string): usize;
-extern def memcpy(dest: *void, src: *void, n: usize);
-extern def strndup(s: string, n: usize): string;
-extern def malloc(size: usize): *void;
+import "num";
+import "libc";
 
 type String struct {
     // don't access directly
     len_: usize,
     cap_: usize,
-    data_: string
+    data_: *i8
 }
 
 def create(): String {
     return from_l("", 0);
 }
 
-def from(s: string): String {
-    return from_l(s, strlen(s));
+def from(s: *i8): String {
+    return from_l(s, libc.strlen(s));
 }
 
-def from_l(s: string, len: usize): String {
+def from_l(s: *i8, len: usize): String {
     let max_storage = (sizeof *void as usize) * 3 - 2;
 
     let str: String = undefined;
 
     // on x64, we have 24 bytes - len (1 byte) - null terminator
     if len <= max_storage {
-        // least significant len bit == 0 => optimized string
+        // least significant len bit == 0 => optimized *i8
         str.len_ = len << 1;
 
-        memcpy((&str as *void) + 1, s as *void, len);
+        libc.memcpy((&str as *void) + 1, s as *void, len);
         *(&str as *i8 + 1 + len) = '\0';
     } else {
         str.cap_ = len;
-        // least significant len bit == 1 => heap allocated string
+        // least significant len bit == 1 => heap allocated *i8
         str.len_ = (len << 1) | 1;
-        str.data_ = strndup(s, len);
+        str.data_ = libc.strndup(s, len);
     }
 
     return str;
 }
 
-def (s: *String) len(): usize {
-    if s.is_optimized() {
-        return *(&s.len_ as *i8) >> 1 as usize;
-    }
+def move_l(s: *i8, len: usize): String {
+    let max_storage = (sizeof *void as usize) * 3 - 2;
 
-    return s.len_ >> 1;
+    // don't optimize moved strings
+    let str: String = undefined;
+    str.cap_ = len;
+    // least significant len bit == 1 => heap allocated *i8
+    str.len_ = (len << 1) | 1;
+    str.data_ = s;
+
+    return str;
 }
 
-def (s: *String) cstring(): string {
+def (s: *String) len(): usize {
+    let len = s.len_;
+    let mask = ((~len & 1) << 7) - 1;
+    return len & mask >> 1;
+
+    // if s.is_optimized() {
+    //     return *(&s.len_ as *i8) >> 1 as usize;
+    // }
+
+    // return s.len_ >> 1;
+}
+
+def (s: *String) cstring(): *i8 {
     if s.is_optimized() {
         return (s as *i8) + 1;
     }
@@ -67,16 +79,16 @@ def (s: *String) push(other: View) {
 
         if  new_len <= max_storage {
             *(&s.len_ as *i8) = (new_len << 1) as i8;
-            memcpy((s as *void + 1) + len, other.data as *void, other.len);
+            libc.memcpy((s as *void + 1) + len, other.data as *void, other.len);
             *(s as *i8 + 1 + new_len) = '\0';
         } else {
-            let cap = std.next_pow_of_2(new_len as i64 + 1) as usize;
-            let data = malloc(cap);
+            let cap = num.next_pow_of_2(new_len as i64 + 1) as usize;
+            let data = libc.malloc(cap);
 
-            memcpy(data, s as *void + 1, len);
-            memcpy(data + len, other.data as *void, other.len);
+            libc.memcpy(data, s as *void + 1, len);
+            libc.memcpy(data + len, other.data as *void, other.len);
 
-            s.data_ = data as string;
+            s.data_ = data as *i8;
             *(s.data_ + new_len) = '\0';
 
             s.len_ = (new_len << 1) | 1;
@@ -87,20 +99,20 @@ def (s: *String) push(other: View) {
     }
 
     if new_len < s.cap_ {
-        memcpy(s.data_ as *void + len, other.data as *void, other.len);
+        libc.memcpy(s.data_ as *void + len, other.data as *void, other.len);
         *(s.data_ + new_len) = '\0';
         s.len_ = (new_len << 1) | 1;
         return;
     }
 
-    let cap = std.next_pow_of_2(new_len as i64 + 1) as usize;
-    let data = malloc(cap);
+    let cap = num.next_pow_of_2(new_len as i64 + 1) as usize;
+    let data = libc.malloc(cap);
 
-    memcpy(data, s.data_ as *void, len);
-    memcpy(data + len, other.data as *void, other.len);
+    libc.memcpy(data, s.data_ as *void, len);
+    libc.memcpy(data + len, other.data as *void, other.len);
 
     delete s.data_;
-    s.data_ = data as string;
+    s.data_ = data as *i8;
     *(s.data_ + new_len) = '\0';
 
     s.len_ = (new_len << 1) | 1;
@@ -112,7 +124,11 @@ def (s: *String) is_optimized(): bool {
 }
 
 def (s: *String) view(): View {
-    return view(s.len(), s.cstring());
+    return view(s.cstring(), s.len());
+}
+
+def (s: *String) clone(): String {
+    return from_l(s.cstring(), s.len());
 }
 
 def (s: *String) free() {
@@ -122,13 +138,39 @@ def (s: *String) free() {
     delete s.data_;
 }
 
-type View struct {
-    len: usize,
-    data: string
+def i64_to_string(i: i64): String {
+    // the longest i64 has 20 chars + 1 for \0
+    let buffer: [21]i8 = undefined;
+    libc.snprintf(&buffer[0], 20 as usize, "%ld", i);
+    return from(&buffer[0]);
 }
 
-def view(len: usize, s: string): View {
+type View struct {
+    len: usize,
+    data: *i8
+}
+
+def view(s: *i8, len: usize): View {
     return View {
         len: len, data: s
     };
+}
+
+def view_from(s: *i8): View {
+    return view(s, libc.strlen(s));
+}
+
+def (v: View) eq(other: View): bool {
+    return v.len == other.len
+        && libc.strncmp(v.data, other.data, v.len) == 0;
+}
+
+def (v: View) starts_with(prefix: View): bool {
+    return v.len >= prefix.len
+        && libc.strncmp(v.data, prefix.data, prefix.len) == 0;
+}
+
+def (v: View) ends_with(postfix: View): bool {
+    return v.len >= postfix.len
+        && libc.strncmp(v.data + (v.len - postfix.len), postfix.data, postfix.len) == 0;
 }

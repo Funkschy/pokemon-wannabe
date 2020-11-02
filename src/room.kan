@@ -1,9 +1,9 @@
 import "io";
 import "str";
-import "std";
 import "npc";
 import "sdl";
 import "text";
+import "libc";
 import "ptrvec";
 import "config";
 import "objects" as o;
@@ -47,8 +47,8 @@ def create(renderer: *sdl.Renderer, width_units: u32, height_units: u32): Room {
         ground: background_spritesheet,
         current_ground: background_spritesheet.get(1, 0),
         current_wall: background_spritesheet.get(0, 2),
-        tiles: std.calloc((width_units * height_units) as usize, sizeof Tile) as *Tile,
-        current_text: str.view(0, ""),
+        tiles: libc.calloc((width_units * height_units) as usize, sizeof Tile) as *Tile,
+        current_text: str.view("", 0),
         textbox: text.load(renderer),
         npcs: ptrvec.create(),
         objects: ptrvec.create()
