@@ -1,8 +1,11 @@
 import "sdl";
 import "vec";
-import "ecs" as _;
+import "math";
+import "input" as i;
 import "physics" as p;
 import "graphics" as g;
+
+import "ecs" as _;
 import "components" as _;
 
 delegate def UpdateFn(s: *System, ts: f32);
@@ -71,7 +74,7 @@ type AnimationRenderSystem struct {
 }
 
 def animation_render_system(ecs: *ECS, r: *sdl.Renderer): AnimationRenderSystem {
-    let sig = signature().with(ComponentKind.Transform).with(ComponentKind.Animation);
+    let sig = signature().with(ComponentKind.Transform).with(ComponentKind.AnimatedGraphics);
     let sys = System {
         relevant_components: sig,
         entities: vec.create(sizeof Entity),
@@ -91,10 +94,16 @@ def animation_render_system_update(s: *System, ts: f32) {
 
     for let i: usize = 0; i < rs.s.entities.len; i += 1 {
         let e = *(rs.s.entities.get_ptr(i) as *Entity);
-        let animation = rs.s.ecs.get_component(e, ComponentKind.Animation) as *g.Animation;
-        animation.update(ts);
+        let graphics = rs.s.ecs.get_component(e, ComponentKind.AnimatedGraphics) as *g.AnimatedGraphics;
+        graphics.current_animation.update(ts);
 
         let transform = rs.s.ecs.get_component(e, ComponentKind.Transform) as *p.Transform;
+
+        // update animation based on velocity
+        if rs.s.ecs.has_component(e, ComponentKind.Movement) {
+            let movement = rs.s.ecs.get_component(e, ComponentKind.Movement) as *p.Movement;
+            graphics.update_based_on_movement(movement.velocity.x, movement.velocity.y);
+        }
 
         let src = sdl.Rect {
             x: transform.position.x as i32,
@@ -103,9 +112,90 @@ def animation_render_system_update(s: *System, ts: f32) {
             h: transform.scale as i32 * 16
         };
 
-        g.render_sprite(rs.r, animation.current_sprite(), src, sdl.RendererFlip.None);
+        g.render_sprite(rs.r, graphics.current_animation.current_sprite(), src, graphics.flip);
     }
 
     rs.r.set_draw_color(0, 19, 26, 255);
     rs.r.present();
+}
+
+type MovementSystem struct {
+    s: System,
+    input: *i.InputState
+}
+
+def movement_system(ecs: *ECS, movement: *i.InputState): MovementSystem {
+    let sig = signature()
+        .with(ComponentKind.Movement)
+        .with(ComponentKind.Transform)
+        .with(ComponentKind.Movement);
+
+    let sys = System {
+        relevant_components: sig,
+        entities: vec.create(sizeof Entity),
+        ecs: ecs,
+        update_fn: &movement_system_update
+    };
+
+    return MovementSystem {
+        s: sys,
+        input: movement
+    };
+}
+
+def movement_system_update(s: *System, ts: f32) {
+    let is = s as *MovementSystem;
+    for let j: usize = 0; j < is.s.entities.len; j += 1 {
+        let e = *(is.s.entities.get_ptr(j) as *Entity);
+        let transform = is.s.ecs.get_component(e, ComponentKind.Transform) as *p.Transform;
+        let movement = is.s.ecs.get_component(e, ComponentKind.Movement) as *p.Movement;
+
+        movement.velocity = math.zero_vec2f();
+
+        if is.input.is_action_pressed(i.Action.Right) {
+            movement.velocity.x += 1.0;
+        }
+
+        if is.input.is_action_pressed(i.Action.Left) {
+            movement.velocity.x -= 1.0;
+        }
+
+        if is.input.is_action_pressed(i.Action.Down) {
+            movement.velocity.y += 1.0;
+        }
+
+        if is.input.is_action_pressed(i.Action.Up) {
+            movement.velocity.y -= 1.0;
+        }
+
+        movement.velocity = movement.velocity
+            .normalized()
+            .times(movement.speed);
+
+        transform.update_with_vel(movement.velocity, ts);
+
+        if !is.s.ecs.has_component(e, ComponentKind.Hitbox) {
+            continue;
+        }
+
+        let hitbox = is.s.ecs.get_component(e, ComponentKind.Hitbox) as *p.Hitbox;
+
+        // the quadratic complexity is irrelevant due to the very small (usually 1) amout of
+        // entities this system operates on
+        let hitbox_sig = signature().with(ComponentKind.Transform).with(ComponentKind.Hitbox);
+        let hitbox_ents = is.s.ecs.entities_with_components(hitbox_sig);
+        for let k: usize = 0; k < hitbox_ents.len; k += 1 {
+            let other = *(hitbox_ents.entities + k);
+            if other.eq(e) {
+                continue;
+            }
+
+            let other_hit = *(is.s.ecs.get_component(other, ComponentKind.Hitbox) as *p.Hitbox);
+            let other_trans = is.s.ecs.get_component(other, ComponentKind.Transform) as *p.Transform;
+
+            let other_rect = other_hit.as_absolute_rect(*other_trans);
+            // adjust transform so objects don't overlap
+            p.resolve_collision(transform, *hitbox, other_rect);
+        }
+    }
 }

@@ -9,7 +9,7 @@ type Transform struct {
 }
 
 def (t: *Transform) update_with_vel(velocity: math.Vec2f, ts: f32) {
-    t.position = t.position.add(velocity.times(ts));
+    t.position = t.position.add(velocity.times(ts).times(config.scale() as f32));
 }
 
 type Hitbox struct {
@@ -42,4 +42,40 @@ def tile_rect(transform: Transform, hitbox: Hitbox): sdl.Rect {
         w: (hitbox.size.x as u32 / config.tile_size()) as i32,
         h: (hitbox.size.y as u32 / config.tile_size()) as i32
     };
+}
+
+def resolve_collision(first_trans: *Transform, first_hit: Hitbox, second: sdl.Rect) {
+    let first = first_hit.as_absolute_rect(*first_trans);
+
+    let p_x1 = first.x;
+    let p_x2 = first.x + first.w;
+    let p_y1 = first.y;
+    let p_y2 = first.y + first.h;
+
+    let o_x1 = second.x;
+    let o_x2 = second.x + second.w;
+    let o_y1 = second.y;
+    let o_y2 = second.y + second.h;
+
+    let h_collision = math.max(0, math.min(p_x2, o_x2) - math.max(p_x1, o_x1));
+    let v_collision = math.max(0, math.min(p_y2, o_y2) - math.max(p_y1, o_y1));
+
+    if h_collision < v_collision {
+        let is_left = (first.x < second.x);
+        if is_left {
+            h_collision *= -1;
+        }
+        first_trans.position.x += h_collision as f32;
+    } else {
+        let is_over = (first.y < second.y);
+        if is_over {
+            v_collision *= -1;
+        }
+        first_trans.position.y += v_collision as f32;
+    }
+}
+
+type Movement struct {
+    velocity: math.Vec2f,
+    speed: f32
 }

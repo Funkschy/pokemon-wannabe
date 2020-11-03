@@ -370,7 +370,6 @@ def get_desktop_display_mode(): DisplayMode {
 }
 
 def delta(last: i64): f64 {
-    let last = last;
     let now = now();
     return ((now - last) as f64 * 1000.0) / (SDL_GetPerformanceFrequency() as f64);
 }

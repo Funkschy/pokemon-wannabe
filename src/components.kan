@@ -1,6 +1,16 @@
+import "ecs" as e;
+import "physics";
+import "graphics";
+
+
 type ComponentKind enum {
     Transform,
     Hitbox,
-    Animation,
-    Sprite
+    AnimatedGraphics,
+    Sprite,
+    Input,
+    Movement
 }
+
+// this is just used as a marker. InputSystem changes the transform directly
+type Input struct {}

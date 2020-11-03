@@ -6,6 +6,7 @@ import "room";
 import "math";
 import "config";
 import "ecs" as _;
+import "arena";
 import "input" as i;
 import "systems" as s;
 import "objects" as o;
@@ -185,20 +186,84 @@ def main() {
     }
     defer player_spritesheet.free();
 
+    spec = g.spritesheet_spec(16, 16, "res/cat.png");
+    let cat_spritesheet: g.SpriteSheet = undefined;
+    if !g.load_spritesheet_from_png(renderer, spec, &cat_spritesheet) {
+        io.printf("Could not load sprite: %s\n", sdl.get_error());
+        return;
+    }
+    defer cat_spritesheet.free();
+
+    let player_animations = arena.typed(sizeof g.Animation);
+    defer player_animations.free();
+
+    let num_player_animations: usize = 1;
+    let player_anim = player_animations.alloc_array(num_player_animations) as *g.Animation;
+
     let player_idle = g.create_animation(&player_spritesheet, 4, 0);
-    let player_sprite = player_spritesheet.get(0, 0);
+    defer player_idle.free();
+    let player_run_down = g.create_animation(&player_spritesheet, 6, 4);
+    defer player_run_down.free();
+    let player_run_up = g.create_animation(&player_spritesheet, 6, 10);
+    defer player_run_up.free();
+    let player_run_horizontal = g.create_animation(&player_spritesheet, 6, 16);
+    defer player_run_horizontal.free();
+
+    *(player_anim + 0) = player_idle;
+    *(player_anim + 1) = player_run_down;
+    *(player_anim + 2) = player_run_up;
+    *(player_anim + 3) = player_run_horizontal;
+
+    let player_graphics = g.AnimatedGraphics {
+        animations: player_anim,
+        num_animations: num_player_animations,
+        current_animation: player_anim, // first animation is idle
+        flip: sdl.RendererFlip.None
+    };
+
     let initial_pos = math.vec2f(5 as f32, 5 as f32);
     let player_transform = p.Transform { position: initial_pos, scale: config.scale() };
+    let player_hitbox = p.hitbox(0, 0, 16, 16);
+
+    let input_marker = Input {};
+    let player_movement = p.Movement {
+        velocity: math.zero_vec2f(),
+        speed: 0.05
+    };
 
     game.ecs = create_ecs();
     defer game.ecs.free();
+
+    let movement_sys = s.movement_system(&game.ecs, &game.input);
+    game.ecs.add_system(&movement_sys.s);
 
     let render_sys = s.animation_render_system(&game.ecs, game.renderer);
     game.ecs.add_system(&render_sys.s);
 
     let player = game.ecs.create_entity();
-    game.ecs.add_component_to_entity(player, ComponentKind.Animation, &player_idle as *void);
+    game.ecs.add_component_to_entity(player, ComponentKind.Input, &input_marker as *void);
+    game.ecs.add_component_to_entity(player, ComponentKind.AnimatedGraphics, &player_graphics as *void);
     game.ecs.add_component_to_entity(player, ComponentKind.Transform, &player_transform as *void);
+    game.ecs.add_component_to_entity(player, ComponentKind.Movement, &player_movement as *void);
+    game.ecs.add_component_to_entity(player, ComponentKind.Hitbox, &player_hitbox as *void);
+
+    let cat_anim = g.create_animation(&cat_spritesheet, 8, 0);
+    defer cat_anim.free();
+    let cat_graphics = g.AnimatedGraphics {
+        animations: &cat_anim,
+        num_animations: 1,
+        current_animation: &cat_anim,
+        flip: sdl.RendererFlip.None
+    };
+
+    let cat_initial_pos = math.vec2f(100 as f32, 100 as f32);
+    let cat_transform = p.Transform { position: cat_initial_pos, scale: config.scale() };
+    let cat_hitbox = p.hitbox (0, 0, 16, 16);
+
+    let cat = game.ecs.create_entity();
+    game.ecs.add_component_to_entity(cat, ComponentKind.AnimatedGraphics, &cat_graphics as *void);
+    game.ecs.add_component_to_entity(cat, ComponentKind.Transform, &cat_transform as *void);
+    game.ecs.add_component_to_entity(cat, ComponentKind.Hitbox, &cat_hitbox as *void);
 
     game.last = sdl.now();
     game.input = i.init_input_map();
