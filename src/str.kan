@@ -160,6 +160,13 @@ def view_from(s: *i8): View {
     return view(s, libc.strlen(s));
 }
 
+def (v: View) offset(offset: usize): View {
+    if offset > v.len {
+        return view(v.data, 0);
+    }
+    return view(v.data + offset, v.len - offset);
+}
+
 def (v: View) eq(other: View): bool {
     return v.len == other.len
         && libc.strncmp(v.data, other.data, v.len) == 0;

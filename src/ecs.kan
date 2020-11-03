@@ -126,7 +126,7 @@ def (ecs: *ECS) add_component_to_entity(e: Entity, kind: components.ComponentKin
     // update systems
     for let i: usize = 0; i < ecs.num_systems(); i += 1 {
         let sys = ecs.get_system(i);
-        if (*sig).has_all(sys.relevant_components) {
+        if (*sig).has_all(sys.relevant_components) && !sys.contains_entity(e) {
             sys.entities.push(&e as *void);
         }
     }

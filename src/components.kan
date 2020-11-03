@@ -1,7 +1,7 @@
+import "str";
+import "text";
 import "ecs" as e;
 import "physics";
-import "graphics";
-
 
 type ComponentKind enum {
     Transform,
@@ -9,8 +9,24 @@ type ComponentKind enum {
     AnimatedGraphics,
     Sprite,
     Input,
-    Movement
+    Movement,
+    Interaction,
+    TextBox
 }
 
-// this is just used as a marker. InputSystem changes the transform directly
-type Input struct {}
+type Input struct {
+    last_interact: i64,
+    interacting: bool
+}
+
+type TextBox struct {
+    dialog_text: str.View,
+    chars_shown: usize,
+    textbox: *text.TextBox
+}
+
+type Interaction struct {
+    hitbox: physics.Hitbox,
+    last_state: usize,
+    current_state: usize
+}

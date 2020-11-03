@@ -25,7 +25,7 @@ def hitbox(x: u32, y: u32, w: u32, h: u32): Hitbox {
 }
 
 def (h: Hitbox) as_absolute_rect(transform: Transform): sdl.Rect {
-    let position = transform.position.add(h.relative_pos);
+    let position = transform.position.add(h.relative_pos.times(config.scale() as f32));
     return sdl.Rect {
         x: position.x as i32,
         y: position.y as i32,
@@ -44,9 +44,7 @@ def tile_rect(transform: Transform, hitbox: Hitbox): sdl.Rect {
     };
 }
 
-def resolve_collision(first_trans: *Transform, first_hit: Hitbox, second: sdl.Rect) {
-    let first = first_hit.as_absolute_rect(*first_trans);
-
+def rect_collisions(first: sdl.Rect, second: sdl.Rect, h_collision: *i32, v_collision: *i32) {
     let p_x1 = first.x;
     let p_x2 = first.x + first.w;
     let p_y1 = first.y;
@@ -57,8 +55,16 @@ def resolve_collision(first_trans: *Transform, first_hit: Hitbox, second: sdl.Re
     let o_y1 = second.y;
     let o_y2 = second.y + second.h;
 
-    let h_collision = math.max(0, math.min(p_x2, o_x2) - math.max(p_x1, o_x1));
-    let v_collision = math.max(0, math.min(p_y2, o_y2) - math.max(p_y1, o_y1));
+    *h_collision = math.max(0, math.min(p_x2, o_x2) - math.max(p_x1, o_x1));
+    *v_collision = math.max(0, math.min(p_y2, o_y2) - math.max(p_y1, o_y1));
+}
+
+def resolve_collision(first_trans: *Transform, first_hit: Hitbox, second: sdl.Rect) {
+    let first = first_hit.as_absolute_rect(*first_trans);
+
+    let h_collision = 0;
+    let v_collision = 0;
+    rect_collisions(first, second, &h_collision, &v_collision);
 
     if h_collision < v_collision {
         let is_left = (first.x < second.x);

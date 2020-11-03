@@ -2,6 +2,7 @@ import "io";
 import "sdl";
 import "str";
 import "npc";
+import "text";
 import "room";
 import "math";
 import "config";
@@ -46,9 +47,13 @@ def mainloop(g: *Game): bool {
         g.input.update_input_map(e);
     }
 
+    g.renderer.set_draw_color(0, 19, 26, 255);
+    g.renderer.clear();
+
     for let i: usize = 0; i < g.ecs.num_systems(); i += 1 {
         g.ecs.get_system(i).update(delta);
     }
+    g.renderer.present();
 
     // g.player.update(delta, &g.input, &g.room);
 
@@ -197,7 +202,7 @@ def main() {
     let player_animations = arena.typed(sizeof g.Animation);
     defer player_animations.free();
 
-    let num_player_animations: usize = 1;
+    let num_player_animations: usize = 4;
     let player_anim = player_animations.alloc_array(num_player_animations) as *g.Animation;
 
     let player_idle = g.create_animation(&player_spritesheet, 4, 0);
@@ -225,23 +230,34 @@ def main() {
     let player_transform = p.Transform { position: initial_pos, scale: config.scale() };
     let player_hitbox = p.hitbox(0, 0, 16, 16);
 
-    let input_marker = Input {};
+    let input = Input {
+        last_interact: 0,
+        interacting: false
+    };
+
     let player_movement = p.Movement {
         velocity: math.zero_vec2f(),
-        speed: 0.05
+        speed: 0.1
     };
 
     game.ecs = create_ecs();
     defer game.ecs.free();
 
-    let movement_sys = s.movement_system(&game.ecs, &game.input);
-    game.ecs.add_system(&movement_sys.s);
+    // systems are popped last to first, so the last sys runs first
+    let debug_render_sys = s.debug_render_system(&game.ecs, game.renderer, &game.debug);
+    game.ecs.add_system(&debug_render_sys.s);
 
     let render_sys = s.animation_render_system(&game.ecs, game.renderer);
     game.ecs.add_system(&render_sys.s);
 
+    let text_render_sys = s.text_render_system(&game.ecs, game.renderer);
+    game.ecs.add_system(&text_render_sys.s);
+
+    let movement_sys = s.movement_system(&game.ecs, &game.input);
+    game.ecs.add_system(&movement_sys.s);
+
     let player = game.ecs.create_entity();
-    game.ecs.add_component_to_entity(player, ComponentKind.Input, &input_marker as *void);
+    game.ecs.add_component_to_entity(player, ComponentKind.Input, &input as *void);
     game.ecs.add_component_to_entity(player, ComponentKind.AnimatedGraphics, &player_graphics as *void);
     game.ecs.add_component_to_entity(player, ComponentKind.Transform, &player_transform as *void);
     game.ecs.add_component_to_entity(player, ComponentKind.Movement, &player_movement as *void);
@@ -256,6 +272,12 @@ def main() {
         flip: sdl.RendererFlip.None
     };
 
+    let cat_dialog = Interaction {
+        hitbox: p.hitbox (-8, -8, 32, 32),
+        last_state: 0,
+        current_state: 0
+    };
+
     let cat_initial_pos = math.vec2f(100 as f32, 100 as f32);
     let cat_transform = p.Transform { position: cat_initial_pos, scale: config.scale() };
     let cat_hitbox = p.hitbox (0, 0, 16, 16);
@@ -264,6 +286,20 @@ def main() {
     game.ecs.add_component_to_entity(cat, ComponentKind.AnimatedGraphics, &cat_graphics as *void);
     game.ecs.add_component_to_entity(cat, ComponentKind.Transform, &cat_transform as *void);
     game.ecs.add_component_to_entity(cat, ComponentKind.Hitbox, &cat_hitbox as *void);
+    game.ecs.add_component_to_entity(cat, ComponentKind.Interaction, &cat_dialog as *void);
+
+    let textbox = text.load(game.renderer);
+    defer textbox.free();
+
+    let textbox_component = TextBox {
+        dialog_text: str.view_from("Meow\n\n\nHey Kid\nyou got some Catnip?"),
+        chars_shown: 0,
+        textbox: &textbox
+    };
+
+    let text = game.ecs.create_entity();
+    game.ecs.add_component_to_entity(text, ComponentKind.TextBox, &textbox_component as *void);
+    game.ecs.add_component_to_entity(text, ComponentKind.Interaction, &cat_dialog as *void);
 
     game.last = sdl.now();
     game.input = i.init_input_map();

@@ -106,7 +106,7 @@ def create_animation(spritesheet: *SpriteSheet, sprite_count: u32, start: u32): 
     return Animation {
         num_sprites: sprite_count,
         frame_pos: 0,
-        frame_change_time: 2500.0 / (sprite_count as f32),
+        frame_change_time: 1000.0 / (sprite_count as f32),
         delta_sum: 0.0,
         sprites: sprites
     };
@@ -142,6 +142,10 @@ type AnimatedGraphics struct {
 def (g: *AnimatedGraphics) update_based_on_movement(h_vel: f32, v_vel: f32) {
     g.flip = sdl.RendererFlip.None;
     g.current_animation = g.animations;
+
+    if g.num_animations < 4 {
+        return;
+    }
 
     if h_vel != 0.0 {
         g.current_animation = g.animations + 3;
