@@ -14,6 +14,7 @@ Go into src/main.kan and make sure that `emscripten_set_main_loop_arg(&mainloop,
 #### For the native version
 ```
 git clone --recursive https://github.com/funkschy/pokemon-wannabe
+cd pokemon-wannabe
 make
 ./game
 
@@ -24,6 +25,7 @@ and comment out the `while running {...}` loop
 #### For the browser version
 ```
 git clone --recursive https://github.com/funkschy/pokemon-wannabe
+cd pokemon-wannabe
 make run
 # open localhost:8080 in you browser
 ```
