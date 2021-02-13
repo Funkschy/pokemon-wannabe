@@ -33,6 +33,16 @@ def (h: Hitbox) as_absolute_rect(transform: Transform): sdl.Rect {
     };
 }
 
+def (h: Hitbox) as_relative_rect(transform: Transform, relative_to: math.Vec2f): sdl.Rect {
+    let position = transform.position.add(h.relative_pos);
+    return sdl.Rect {
+        x: (position.x + relative_to.x) as i32,
+        y: (position.y + relative_to.y) as i32,
+        w: h.size.x as i32,
+        h: h.size.y as i32
+    };
+}
+
 def rect_collisions(first: sdl.Rect, second: sdl.Rect, h_collision: *i32, v_collision: *i32) {
     let p_x1 = first.x;
     let p_x2 = first.x + first.w;

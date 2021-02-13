@@ -22,6 +22,9 @@ type Game struct {
     debug: bool,
     renderer: *sdl.Renderer,
     window: *sdl.Window,
+    // these 2 can be swapped to change the camera perspective
+    relative_to: *math.Vec2f,
+    other_relative_to: *math.Vec2f,
     last: i64,
     input: i.InputState,
     ecs: ECS
@@ -40,6 +43,13 @@ def mainloop(g: *Game): bool {
         if e.common.kind == sdl.EventKind.KeyDown && e.key_event.keysym.sym == 'g' {
             g.debug = !g.debug;
             io.printf("debug %d\n", g.debug);
+            continue;
+        }
+
+        if e.common.kind == sdl.EventKind.KeyDown && e.key_event.keysym.sym == 'p' {
+            let t = g.relative_to;
+            g.relative_to = g.other_relative_to;
+            g.other_relative_to = t;
             continue;
         }
 
@@ -75,6 +85,10 @@ def main() {
 
     let width = config.width();
     let height = config.height();
+    let widthf = width as f32;
+    let heightf = height as f32;
+
+    let center = math.vec2f(widthf / 2.0, heightf / 2.0);
 
     let window = sdl.create_window(
         "Quasi Pokemon",
@@ -127,7 +141,7 @@ def main() {
 
     let player_graphics = g.simple_anime(&player_anim[0], 4);
 
-    let initial_pos = math.vec2f(60.0, 5.0);
+    let initial_pos = math.vec2f(0.0, 0.0);
     let player_transform = p.Transform { position: initial_pos };
     let player_hitbox = p.hitbox(0, 0, 16, 16);
 
@@ -147,14 +161,19 @@ def main() {
     let textbox = text.load(game.renderer);
     defer textbox.free();
 
+    let zero = math.vec2f(0.0, 0.0);
+    game.relative_to = &zero;
+    game.other_relative_to = &player_transform.position;
+    let rel_pos = &game.relative_to;
+
     // systems are popped last to first, so the last sys runs first
-    let repeated_render_sys = s.repeated_render_system(&game.ecs, game.renderer);
+    let repeated_render_sys = s.repeated_render_system(&game.ecs, game.renderer, center, rel_pos);
     game.ecs.add_system(&repeated_render_sys.s);
 
-    let anim_render_sys = s.animation_render_system(&game.ecs, game.renderer);
+    let anim_render_sys = s.animation_render_system(&game.ecs, game.renderer, center, rel_pos);
     game.ecs.add_system(&anim_render_sys.s);
 
-    let sprite_render_sys = s.sprite_render_system(&game.ecs, game.renderer);
+    let sprite_render_sys = s.sprite_render_system(&game.ecs, game.renderer, center, rel_pos);
     game.ecs.add_system(&sprite_render_sys.s);
 
     let text_render_sys = s.text_render_system(&game.ecs, game.renderer);
@@ -172,7 +191,7 @@ def main() {
     let interaction_sys = s.interaction_system(&game.ecs, &game.input);
     game.ecs.add_system(&interaction_sys.s);
 
-    let debug_render_sys = s.debug_render_system(&game.ecs, game.renderer, &game.debug, textbox.font);
+    let debug_render_sys = s.debug_render_system(&game.ecs, game.renderer, &game.debug, textbox.font, center, rel_pos);
     game.ecs.add_system(&debug_render_sys.s);
 
     // --- player ---
@@ -203,7 +222,7 @@ def main() {
 
     let cat_dialog_text = str.view_from("Meow\n\n\nHey Kid\nyou got some Catnip?");
 
-    let cat_initial_pos = math.vec2f(30.0, 60.0);
+    let cat_initial_pos = math.vec2f(-30.0, -30.0);
     let cat_transform = p.Transform { position: cat_initial_pos };
 
     let cat = game.ecs.create_entity();
@@ -221,7 +240,7 @@ def main() {
     let thot_anim = g.create_animation(res.get(res.Resource.ThotSpriteSheet), 8, 0);
     defer thot_anim.free();
     let thot_graphics = g.simple_anime(&thot_anim, 1);
-    let thot_transform = p.Transform { position: math.vec2f(100.0, 100.0) };
+    let thot_transform = p.Transform { position: math.vec2f(50.0, 40.0) };
 
     let thot_dialog = Interaction {
         hitbox: p.hitbox (-8, -8, 32, 32),
@@ -250,7 +269,7 @@ def main() {
 
     let wall_h = 16;
     let wall_transform = p.Transform {
-        position: math.vec2f(0.0, 0.0)
+        position: math.vec2f(-center.x, -center.y)
     };
     let wall_sprite = background_spritesheet.get(0, 0);
     let wall_graphics = g.Graphics {
@@ -272,7 +291,7 @@ def main() {
 
     // --- floor ---
     let floor_transform = p.Transform {
-        position: math.vec2f(0.0, wall_h as f32)
+        position: math.vec2f(-center.x, wall_h as f32 - center.y)
     };
     let floor_sprite = background_spritesheet.get(1, 0);
     let floor_graphics = g.Graphics {
@@ -297,7 +316,7 @@ def main() {
         sprite: &clock_sprite,
         flip: sdl.RendererFlip.None
     };
-    let clock_initial_pos = math.vec2f(120.0, 0.0);
+    let clock_initial_pos = math.vec2f(60.0, -center.y);
     let clock_transform = p.Transform { position: clock_initial_pos };
     let clock_hitbox = p.hitbox (0, 16, 16, 16);
 

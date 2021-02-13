@@ -47,10 +47,12 @@ def (s: *System) free() {
 
 type SpriteRenderSystem struct {
     s: System,
-    r: *sdl.Renderer
+    r: *sdl.Renderer,
+    relative_to: **math.Vec2f,
+    center: math.Vec2f
 }
 
-def sprite_render_system(ecs: *ECS, r: *sdl.Renderer): SpriteRenderSystem {
+def sprite_render_system(ecs: *ECS, r: *sdl.Renderer, center: math.Vec2f, relative_to: **math.Vec2f): SpriteRenderSystem {
     let sig = signature().with(ComponentKind.Transform).with(ComponentKind.Graphics);
     let sys = System {
         relevant_components: sig,
@@ -61,7 +63,9 @@ def sprite_render_system(ecs: *ECS, r: *sdl.Renderer): SpriteRenderSystem {
 
     return SpriteRenderSystem {
         s: sys,
-        r: r
+        r: r,
+        relative_to: relative_to,
+        center: center
     };
 }
 
@@ -74,8 +78,8 @@ def sprite_render_system_update(s: *System, ts: f32) {
         let transform = s.ecs.get_component(e, ComponentKind.Transform) as *p.Transform;
 
         let dest = sdl.Rect {
-            x: transform.position.x as i32,
-            y: transform.position.y as i32,
+            x: (transform.position.x + rs.center.x - (*rs.relative_to).x) as i32,
+            y: (transform.position.y + rs.center.y - (*rs.relative_to).y) as i32,
             w: graphics.sprite.rect.w,
             h: graphics.sprite.rect.h
         };
@@ -86,10 +90,12 @@ def sprite_render_system_update(s: *System, ts: f32) {
 
 type RepeatedRenderSystem struct {
     s: System,
-    r: *sdl.Renderer
+    r: *sdl.Renderer,
+    relative_to: **math.Vec2f,
+    center: math.Vec2f
 }
 
-def repeated_render_system(ecs: *ECS, r: *sdl.Renderer): RepeatedRenderSystem {
+def repeated_render_system(ecs: *ECS, r: *sdl.Renderer, center: math.Vec2f, relative_to: **math.Vec2f): RepeatedRenderSystem {
     let sig = signature().with(ComponentKind.Transform).with(ComponentKind.RepeatedGraphics);
     let sys = System {
         relevant_components: sig,
@@ -100,7 +106,9 @@ def repeated_render_system(ecs: *ECS, r: *sdl.Renderer): RepeatedRenderSystem {
 
     return RepeatedRenderSystem {
         s: sys,
-        r: r
+        r: r,
+        relative_to: relative_to,
+        center: center
     };
 }
 
@@ -115,13 +123,13 @@ def repeated_render_system_update(s: *System, ts: f32) {
         let sprite = graphics.inner.sprite;
 
         let single_dest = sdl.Rect {
-            x: transform.position.x as i32,
-            y: transform.position.y as i32,
+            x: (transform.position.x + rs.center.x - (*rs.relative_to).x) as i32,
+            y: (transform.position.y + rs.center.y - (*rs.relative_to).y) as i32,
             w: sprite.rect.w,
             h: sprite.rect.h
         };
 
-        let orig_x = transform.position.x as i32;
+        let orig_x = single_dest.x;
 
         for let y = 0; y < graphics.reps_h; y += 1 {
             for let x = 0; x < graphics.reps_w; x += 1 {
@@ -192,10 +200,12 @@ def text_render_system_update(s: *System, ts: f32) {
 
 type AnimationRenderSystem struct {
     s: System,
-    r: *sdl.Renderer
+    r: *sdl.Renderer,
+    relative_to: **math.Vec2f,
+    center: math.Vec2f
 }
 
-def animation_render_system(ecs: *ECS, r: *sdl.Renderer): AnimationRenderSystem {
+def animation_render_system(ecs: *ECS, r: *sdl.Renderer, center: math.Vec2f, relative_to: **math.Vec2f): AnimationRenderSystem {
     let sig = signature().with(ComponentKind.Transform).with(ComponentKind.AnimatedGraphics);
     let sys = System {
         relevant_components: sig,
@@ -206,7 +216,9 @@ def animation_render_system(ecs: *ECS, r: *sdl.Renderer): AnimationRenderSystem 
 
     return AnimationRenderSystem {
         s: sys,
-        r: r
+        r: r,
+        relative_to: relative_to,
+        center: center
     };
 }
 
@@ -228,8 +240,8 @@ def animation_render_system_update(s: *System, ts: f32) {
 
         let sprite = graphics.current_animation.current_sprite();
         let dest = sdl.Rect {
-            x: transform.position.x as i32,
-            y: transform.position.y as i32,
+            x: (transform.position.x + rs.center.x - (*rs.relative_to).x) as i32,
+            y: (transform.position.y + rs.center.y - (*rs.relative_to).y) as i32,
             w: sprite.rect.w,
             h: sprite.rect.h
         };
@@ -242,13 +254,22 @@ type DebugRenderSystem struct {
     s: System,
     renderer: *sdl.Renderer,
     debug: *bool,
+    relative_to: **math.Vec2f,
+    center: math.Vec2f,
     font: text.Font,
     delta_sum: f32,
     frame_count: u32,
     last_fps: u32
 }
 
-def debug_render_system(ecs: *ECS, r: *sdl.Renderer, debug: *bool, font: text.Font): DebugRenderSystem {
+def debug_render_system(
+    ecs: *ECS,
+    r: *sdl.Renderer,
+    debug: *bool,
+    font: text.Font,
+    center: math.Vec2f,
+    relative_to: **math.Vec2f
+): DebugRenderSystem {
     let sig = signature()
         .with(ComponentKind.Transform)
         .with(ComponentKind.Hitbox);
@@ -264,6 +285,8 @@ def debug_render_system(ecs: *ECS, r: *sdl.Renderer, debug: *bool, font: text.Fo
         s: sys,
         renderer: r,
         debug: debug,
+        relative_to: relative_to,
+        center: center,
         font: font,
         delta_sum: 0.0,
         frame_count: 0,
@@ -306,12 +329,13 @@ def debug_render_system_update(s: *System, ts: f32) {
         ds.frame_count = 0;
     }
 
+    let relative_to = ds.center.add((**ds.relative_to).times(-1.0));
     for let j: usize = 0; j < s.entities.len; j += 1 {
         let e = *(s.entities.get_ptr(j) as *Entity);
         let transform = *(s.ecs.get_component(e, ComponentKind.Transform) as *p.Transform);
         let hitbox = *(s.ecs.get_component(e, ComponentKind.Hitbox) as *p.Hitbox);
 
-        let abs_rect = hitbox.as_absolute_rect(transform);
+        let abs_rect = hitbox.as_relative_rect(transform, relative_to);
         ds.renderer.draw_rect(&abs_rect);
 
         if !s.ecs.has_component(e, ComponentKind.Interaction) {
@@ -322,7 +346,7 @@ def debug_render_system_update(s: *System, ts: f32) {
         defer ds.renderer.set_draw_color(255, 0, 0, 255);
 
         let interact = s.ecs.get_component(e, ComponentKind.Interaction) as *Interaction;
-        let abs_rect = interact.hitbox.as_absolute_rect(transform);
+        let abs_rect = interact.hitbox.as_relative_rect(transform, relative_to);
         ds.renderer.draw_rect(&abs_rect);
     }
 }
@@ -395,22 +419,24 @@ def input_system_update(s: *System, ts: f32) {
         let input = s.ecs.get_component(e, ComponentKind.Input) as *Input;
 
         movement.velocity = math.zero_vec2f();
-        if !input.interacting {
-            if ms.input.is_action_pressed(i.Action.Right) {
-                movement.velocity.x += 1.0;
-            }
+        if input.interacting {
+            continue;
+        }
 
-            if ms.input.is_action_pressed(i.Action.Left) {
-                movement.velocity.x -= 1.0;
-            }
+        if ms.input.is_action_pressed(i.Action.Right) {
+            movement.velocity.x += 1.0;
+        }
 
-            if ms.input.is_action_pressed(i.Action.Down) {
-                movement.velocity.y += 1.0;
-            }
+        if ms.input.is_action_pressed(i.Action.Left) {
+            movement.velocity.x -= 1.0;
+        }
 
-            if ms.input.is_action_pressed(i.Action.Up) {
-                movement.velocity.y -= 1.0;
-            }
+        if ms.input.is_action_pressed(i.Action.Down) {
+            movement.velocity.y += 1.0;
+        }
+
+        if ms.input.is_action_pressed(i.Action.Up) {
+            movement.velocity.y -= 1.0;
         }
     }
 }
