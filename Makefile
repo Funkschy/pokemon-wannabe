@@ -43,6 +43,13 @@ dist/index.js : $(KANTAN_FILES)
 	rm $(OBJ)
 
 
+.PHONY: deploy
+deploy : dist/index.js
+	git add dist
+	git commit -m "update dist"
+	git subtree push --prefix dist origin gh-pages
+
+
 .PHONY: run
 run : dist/index.js
 	cd dist && python3 -m http.server 8080

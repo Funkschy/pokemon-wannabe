@@ -127,7 +127,7 @@ def main() {
 
     let player_graphics = g.simple_anime(&player_anim[0], 4);
 
-    let initial_pos = math.vec2f(5.0, 5.0);
+    let initial_pos = math.vec2f(60.0, 5.0);
     let player_transform = p.Transform { position: initial_pos };
     let player_hitbox = p.hitbox(0, 0, 16, 16);
 
