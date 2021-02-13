@@ -6,12 +6,15 @@ import "physics";
 type ComponentKind enum {
     Transform,
     Hitbox,
+    Graphics,
+    RepeatedGraphics,
     AnimatedGraphics,
-    Sprite,
     Input,
     Movement,
     Interaction,
-    TextBox
+    TextBox,
+    StrView,
+    TargetTransform
 }
 
 type Input struct {
@@ -20,13 +23,12 @@ type Input struct {
 }
 
 type TextBox struct {
-    dialog_text: str.View,
-    chars_shown: usize,
     textbox: *text.TextBox
 }
 
 type Interaction struct {
     hitbox: physics.Hitbox,
+    chars_shown: usize,
     last_state: usize,
     current_state: usize
 }

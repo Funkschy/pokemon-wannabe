@@ -1,16 +1,14 @@
 import "io";
 import "sdl";
 import "str";
-import "npc";
+import "res";
 import "text";
-import "room";
 import "math";
 import "config";
 import "ecs" as _;
 import "arena";
 import "input" as i;
 import "systems" as s;
-import "objects" as o;
 import "physics" as p;
 import "graphics" as g;
 import "components" as _;
@@ -55,43 +53,6 @@ def mainloop(g: *Game): bool {
     }
     g.renderer.present();
 
-    // g.player.update(delta, &g.input, &g.room);
-
-    // g.room.render_background(g.renderer);
-
-    // if g.debug {
-    //     g.renderer.set_draw_color(255, 0, 0, 255);
-    // }
-
-    // for let i: usize = 0; i < g.room.objects.len; i += 1 {
-    //     let obj = g.room.objects.get(i) as *o.Object;
-    //     g.player.resolve_collision(obj.abs_rect());
-    //     obj.render(g.renderer);
-
-    //     if g.debug {
-    //         let rect = obj.abs_rect();
-    //         g.renderer.draw_rect(&rect);
-    //     }
-    // }
-
-    // for let i: usize = 0; i < g.room.npcs.len; i += 1 {
-    //     let npc = g.room.npcs.get(i) as *npc.Npc;
-    //     npc.update(delta);
-    //     g.player.resolve_collision(npc.abs_rect());
-    //     npc.render(g.renderer);
-
-    //     if g.debug {
-    //         let rect = npc.abs_rect();
-    //         g.renderer.draw_rect(&rect);
-    //     }
-    // }
-
-    // g.player.render(g.renderer);
-    // if g.debug {
-    //     let rect = g.player.abs_rect();
-    //     g.renderer.draw_rect(&rect);
-    // }
-
     return true;
 }
 
@@ -110,16 +71,15 @@ def main() {
     defer sdl.img_quit();
 
     let display_mode = sdl.get_desktop_display_mode();
-    config.set_scale(display_mode.h as u32 / config.pixel_height() / 2);
 
-    let width = config.pixel_width();
-    let height = config.pixel_height();
+    let width = config.width();
+    let height = config.height();
 
     let window = sdl.create_window(
         "Quasi Pokemon",
         sdl.window_centered(), sdl.window_centered(),
-        width, height,
-        sdl.window_shown()
+        display_mode.w / 2, display_mode.h / 2,
+        sdl.window_shown() | sdl.window_resizeable()
     );
 
     if window == null {
@@ -132,72 +92,17 @@ def main() {
     renderer.set_draw_color(0, 19, 26, 255);
     defer renderer.destroy();
 
-    // let joystick: *sdl.Joystick = null;
-    // if sdl.num_joysticks() > 0 && (joystick = sdl.open_joystick(0)) == null {
-    //     io.printf("Could not open joystick: %s\n", sdl.get_error());
-    //     return;
-    // }
-    // defer joystick.close();
+    renderer.set_logical_size(config.width(), config.height());
+    renderer.set_integer_scale(true);
 
     let game: Game = undefined;
     game.debug = false;
     game.renderer = renderer;
     game.window = window;
 
-    // game.room = room.create(
-    //     renderer,
-    //     config.width() / config.tile_size(),
-    //     config.height() / config.tile_size()
-    // );
-    // defer game.room.free();
-    // let room = &game.room;
-
-    // game.player = p.load(renderer, width / 2, height / 2);
-    // defer game.player.free();
-    // game.player.current_animation = &game.player.idle_animation;
-
-    // let cat = npc.load(renderer, npc.Kind.WithDialog, "res/cat.png", 8, 3, 1);
-    // cat.data.with_dialog.dialog_text = str.from(
-    //     "Meow\n\n\nHey Kid\nyou got some Catnip?"
-    // );
-    // cat.data.with_dialog.basic.flip = sdl.RendererFlip.Horizontal;
-    // room.add_npc(cat);
-
-    // let thot = npc.load(renderer, npc.Kind.WithDialog, "res/thot.png", 12, 14, 5);
-    // thot.data.with_dialog.dialog_text = str.from(
-    //     "Follow me on twitch, Instagram, Snapchat, Twitter, Youtube\nand onlyfans"
-    // );
-    // room.add_npc(thot);
-
-    // let goblin = npc.load(renderer, npc.Kind.Enemy, "res/goblin.png", 1, 3, 4);
-    // goblin.data.enemy.behaviour = b.follow_player();
-    // room.add_npc(goblin);
-
-    // let bed = o.load_simple(renderer, 1, 1, 16, 32, "res/bed.png");
-    // room.add_object(bed);
-    // let clock = o.load_simple(renderer, 18, 0, 16, 32, "res/clock.png");
-    // room.add_object(clock);
-    // let table = o.load_simple(renderer, 10, 9, 16, 32, "res/table.png");
-    // room.add_object(table);
-
-    // let wall = o.init_trigger(0, 0, config.width(), 16);
-    // room.add_object(wall);
-
-    let spec = g.spritesheet_spec(16, 16, "res/girl.png");
-    let player_spritesheet: g.SpriteSheet = undefined;
-    if !g.load_spritesheet_from_png(renderer, spec, &player_spritesheet) {
-        io.printf("Could not load sprite: %s\n", sdl.get_error());
-        return;
-    }
-    defer player_spritesheet.free();
-
-    spec = g.spritesheet_spec(16, 16, "res/cat.png");
-    let cat_spritesheet: g.SpriteSheet = undefined;
-    if !g.load_spritesheet_from_png(renderer, spec, &cat_spritesheet) {
-        io.printf("Could not load sprite: %s\n", sdl.get_error());
-        return;
-    }
-    defer cat_spritesheet.free();
+    res.init_spritesheet_specs();
+    res.load_spritesheets(game.renderer);
+    defer res.free();
 
     let player_animations = arena.typed(sizeof g.Animation);
     defer player_animations.free();
@@ -205,13 +110,14 @@ def main() {
     let num_player_animations: usize = 4;
     let player_anim = player_animations.alloc_array(num_player_animations) as *g.Animation;
 
-    let player_idle = g.create_animation(&player_spritesheet, 4, 0);
+    let player_spritesheet = res.get(res.Resource.GirlSpriteSheet);
+    let player_idle = g.create_animation(player_spritesheet, 4, 0);
     defer player_idle.free();
-    let player_run_down = g.create_animation(&player_spritesheet, 6, 4);
+    let player_run_down = g.create_animation(player_spritesheet, 6, 4);
     defer player_run_down.free();
-    let player_run_up = g.create_animation(&player_spritesheet, 6, 10);
+    let player_run_up = g.create_animation(player_spritesheet, 6, 10);
     defer player_run_up.free();
-    let player_run_horizontal = g.create_animation(&player_spritesheet, 6, 16);
+    let player_run_horizontal = g.create_animation(player_spritesheet, 6, 16);
     defer player_run_horizontal.free();
 
     *(player_anim + 0) = player_idle;
@@ -219,15 +125,10 @@ def main() {
     *(player_anim + 2) = player_run_up;
     *(player_anim + 3) = player_run_horizontal;
 
-    let player_graphics = g.AnimatedGraphics {
-        animations: player_anim,
-        num_animations: num_player_animations,
-        current_animation: player_anim, // first animation is idle
-        flip: sdl.RendererFlip.None
-    };
+    let player_graphics = g.simple_anime(player_anim, 4);
 
-    let initial_pos = math.vec2f(5 as f32, 5 as f32);
-    let player_transform = p.Transform { position: initial_pos, scale: config.scale() };
+    let initial_pos = math.vec2f(5.0, 5.0);
+    let player_transform = p.Transform { position: initial_pos };
     let player_hitbox = p.hitbox(0, 0, 16, 16);
 
     let input = Input {
@@ -243,63 +144,167 @@ def main() {
     game.ecs = create_ecs();
     defer game.ecs.free();
 
-    // systems are popped last to first, so the last sys runs first
-    let debug_render_sys = s.debug_render_system(&game.ecs, game.renderer, &game.debug);
-    game.ecs.add_system(&debug_render_sys.s);
+    let textbox = text.load(game.renderer);
+    defer textbox.free();
 
-    let render_sys = s.animation_render_system(&game.ecs, game.renderer);
-    game.ecs.add_system(&render_sys.s);
+    // systems are popped last to first, so the last sys runs first
+    let repeated_render_sys = s.repeated_render_system(&game.ecs, game.renderer);
+    game.ecs.add_system(&repeated_render_sys.s);
+
+    let anim_render_sys = s.animation_render_system(&game.ecs, game.renderer);
+    game.ecs.add_system(&anim_render_sys.s);
+
+    let sprite_render_sys = s.sprite_render_system(&game.ecs, game.renderer);
+    game.ecs.add_system(&sprite_render_sys.s);
 
     let text_render_sys = s.text_render_system(&game.ecs, game.renderer);
     game.ecs.add_system(&text_render_sys.s);
 
-    let movement_sys = s.movement_system(&game.ecs, &game.input);
+    let movement_sys = s.movement_system(&game.ecs);
     game.ecs.add_system(&movement_sys.s);
 
+    let input_sys = s.input_system(&game.ecs, &game.input);
+    game.ecs.add_system(&input_sys.s);
+
+    let collision_sys = s.collision_system(&game.ecs);
+    game.ecs.add_system(&collision_sys.s);
+
+    let interaction_sys = s.interaction_system(&game.ecs, &game.input);
+    game.ecs.add_system(&interaction_sys.s);
+
+    let debug_render_sys = s.debug_render_system(&game.ecs, game.renderer, &game.debug, textbox.font);
+    game.ecs.add_system(&debug_render_sys.s);
+
+    // --- player ---
     let player = game.ecs.create_entity();
     game.ecs.add_component_to_entity(player, ComponentKind.Input, &input as *void);
+    game.ecs.add_component_to_entity(player, ComponentKind.Movement, &player_movement as *void);
     game.ecs.add_component_to_entity(player, ComponentKind.AnimatedGraphics, &player_graphics as *void);
     game.ecs.add_component_to_entity(player, ComponentKind.Transform, &player_transform as *void);
-    game.ecs.add_component_to_entity(player, ComponentKind.Movement, &player_movement as *void);
     game.ecs.add_component_to_entity(player, ComponentKind.Hitbox, &player_hitbox as *void);
 
-    let cat_anim = g.create_animation(&cat_spritesheet, 8, 0);
-    defer cat_anim.free();
-    let cat_graphics = g.AnimatedGraphics {
-        animations: &cat_anim,
-        num_animations: 1,
-        current_animation: &cat_anim,
-        flip: sdl.RendererFlip.None
+    let npc_hitbox = p.hitbox (0, 0, 16, 16);
+
+    let textbox_component = TextBox {
+        textbox: &textbox
     };
+
+    // --- cat ---
+    let cat_anim = g.create_animation(res.get(res.Resource.CatSpriteSheet), 8, 0);
+    defer cat_anim.free();
+    let cat_graphics = g.simple_anime(&cat_anim, 1);
 
     let cat_dialog = Interaction {
         hitbox: p.hitbox (-8, -8, 32, 32),
+        chars_shown: 0,
         last_state: 0,
         current_state: 0
     };
 
-    let cat_initial_pos = math.vec2f(100 as f32, 100 as f32);
-    let cat_transform = p.Transform { position: cat_initial_pos, scale: config.scale() };
-    let cat_hitbox = p.hitbox (0, 0, 16, 16);
+    let cat_dialog_text = str.view_from("Meow\n\n\nHey Kid\nyou got some Catnip?");
+
+    let cat_initial_pos = math.vec2f(30.0, 60.0);
+    let cat_transform = p.Transform { position: cat_initial_pos };
 
     let cat = game.ecs.create_entity();
     game.ecs.add_component_to_entity(cat, ComponentKind.AnimatedGraphics, &cat_graphics as *void);
     game.ecs.add_component_to_entity(cat, ComponentKind.Transform, &cat_transform as *void);
-    game.ecs.add_component_to_entity(cat, ComponentKind.Hitbox, &cat_hitbox as *void);
+    game.ecs.add_component_to_entity(cat, ComponentKind.Hitbox, &npc_hitbox as *void);
     game.ecs.add_component_to_entity(cat, ComponentKind.Interaction, &cat_dialog as *void);
 
-    let textbox = text.load(game.renderer);
-    defer textbox.free();
+    let cat_text = game.ecs.create_entity();
+    game.ecs.add_component_to_entity(cat_text, ComponentKind.TextBox, &textbox_component as *void);
+    game.ecs.add_component_to_entity(cat_text, ComponentKind.Interaction, &cat_dialog as *void);
+    game.ecs.add_component_to_entity(cat_text, ComponentKind.StrView, &cat_dialog_text as *void);
 
-    let textbox_component = TextBox {
-        dialog_text: str.view_from("Meow\n\n\nHey Kid\nyou got some Catnip?"),
+    // --- thot ---
+    let thot_anim = g.create_animation(res.get(res.Resource.ThotSpriteSheet), 8, 0);
+    defer thot_anim.free();
+    let thot_graphics = g.simple_anime(&thot_anim, 1);
+    let thot_transform = p.Transform { position: math.vec2f(100.0, 100.0) };
+
+    let thot_dialog = Interaction {
+        hitbox: p.hitbox (-8, -8, 32, 32),
         chars_shown: 0,
-        textbox: &textbox
+        last_state: 0,
+        current_state: 0
     };
 
-    let text = game.ecs.create_entity();
-    game.ecs.add_component_to_entity(text, ComponentKind.TextBox, &textbox_component as *void);
-    game.ecs.add_component_to_entity(text, ComponentKind.Interaction, &cat_dialog as *void);
+    let thot_dialog_text = str.view_from(
+        "Follow me on twitch, Instagram, Snapchat, Twitter, Youtube\nand onlyfans"
+    );
+
+    let thot = game.ecs.create_entity();
+    game.ecs.add_component_to_entity(thot, ComponentKind.Hitbox, &npc_hitbox as *void);
+    game.ecs.add_component_to_entity(thot, ComponentKind.Transform, &thot_transform as *void);
+    game.ecs.add_component_to_entity(thot, ComponentKind.AnimatedGraphics, &thot_graphics as *void);
+    game.ecs.add_component_to_entity(thot, ComponentKind.Interaction, &thot_dialog as *void);
+
+    let thot_text = game.ecs.create_entity();
+    game.ecs.add_component_to_entity(thot_text, ComponentKind.TextBox, &textbox_component as *void);
+    game.ecs.add_component_to_entity(thot_text, ComponentKind.Interaction, &thot_dialog as *void);
+    game.ecs.add_component_to_entity(thot_text, ComponentKind.StrView, &thot_dialog_text as *void);
+
+    // --- wall ---
+    let background_spritesheet = res.get(res.Resource.BackgroundSpriteSheet);
+
+    let wall_h = 16;
+    let wall_transform = p.Transform {
+        position: math.vec2f(0.0, 0.0)
+    };
+    let wall_sprite = background_spritesheet.get(0, 0);
+    let wall_graphics = g.Graphics {
+        sprite: &wall_sprite,
+        flip: sdl.RendererFlip.None
+    };
+
+    let wall_rep = g.RepeatedGraphics {
+        inner: wall_graphics,
+        reps_w: config.width() / 8,
+        reps_h: 2
+    };
+    let wall_hitbox = p.hitbox (0, 0, config.width(), wall_h);
+
+    let wall = game.ecs.create_entity();
+    game.ecs.add_component_to_entity(wall, ComponentKind.Transform, &wall_transform as *void);
+    game.ecs.add_component_to_entity(wall, ComponentKind.RepeatedGraphics, &wall_rep as *void);
+    game.ecs.add_component_to_entity(wall, ComponentKind.Hitbox, &wall_hitbox as *void);
+
+    // --- floor ---
+    let floor_transform = p.Transform {
+        position: math.vec2f(0.0, wall_h as f32)
+    };
+    let floor_sprite = background_spritesheet.get(1, 0);
+    let floor_graphics = g.Graphics {
+        sprite: &floor_sprite,
+        flip: sdl.RendererFlip.None
+    };
+
+    let floor_rep = g.RepeatedGraphics {
+        inner: floor_graphics,
+        reps_w: config.width() / 8,
+        reps_h: (config.height() - wall_h) / 8
+    };
+
+    let floor = game.ecs.create_entity();
+    game.ecs.add_component_to_entity(floor, ComponentKind.Transform, &floor_transform as *void);
+    game.ecs.add_component_to_entity(floor, ComponentKind.RepeatedGraphics, &floor_rep as *void);
+
+    // --- Clock ---
+
+    let clock_sprite = res.get(res.Resource.ClockSpriteSheet).get(0, 0);
+    let clock_graphics = g.Graphics {
+        sprite: &clock_sprite,
+        flip: sdl.RendererFlip.None
+    };
+    let clock_initial_pos = math.vec2f(120.0, 0.0);
+    let clock_transform = p.Transform { position: clock_initial_pos };
+    let clock_hitbox = p.hitbox (0, 16, 16, 16);
+
+    let clock = game.ecs.create_entity();
+    game.ecs.add_component_to_entity(clock, ComponentKind.Transform, &clock_transform as *void);
+    game.ecs.add_component_to_entity(clock, ComponentKind.Graphics, &clock_graphics as *void);
+    game.ecs.add_component_to_entity(clock, ComponentKind.Hitbox, &clock_hitbox as *void);
 
     game.last = sdl.now();
     game.input = i.init_input_map();

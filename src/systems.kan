@@ -46,7 +46,7 @@ type SpriteRenderSystem struct {
 }
 
 def sprite_render_system(ecs: *ECS, r: *sdl.Renderer): SpriteRenderSystem {
-    let sig = signature().with(ComponentKind.Transform).with(ComponentKind.Sprite);
+    let sig = signature().with(ComponentKind.Transform).with(ComponentKind.Graphics);
     let sys = System {
         relevant_components: sig,
         entities: vec.create(sizeof Entity),
@@ -65,16 +65,67 @@ def sprite_render_system_update(s: *System, ts: f32) {
 
     for let i: usize = 0; i < s.entities.len; i += 1 {
         let e = *(s.entities.get_ptr(i) as *Entity);
-        let sprite = s.ecs.get_component(e, ComponentKind.Sprite) as *g.Sprite;
+        let graphics = s.ecs.get_component(e, ComponentKind.Graphics) as *g.Graphics;
         let transform = s.ecs.get_component(e, ComponentKind.Transform) as *p.Transform;
 
-        let src = sdl.Rect {
+        let dest = sdl.Rect {
             x: transform.position.x as i32,
             y: transform.position.y as i32,
-            w: transform.scale as i32 * 16,
-            h: transform.scale as i32 * 16
+            w: graphics.sprite.rect.w,
+            h: graphics.sprite.rect.h
         };
-        g.render_sprite(rs.r, sprite, src, sdl.RendererFlip.None);
+
+        g.render_sprite(rs.r, graphics.sprite, dest, graphics.flip);
+    }
+}
+
+type RepeatedRenderSystem struct {
+    s: System,
+    r: *sdl.Renderer
+}
+
+def repeated_render_system(ecs: *ECS, r: *sdl.Renderer): RepeatedRenderSystem {
+    let sig = signature().with(ComponentKind.Transform).with(ComponentKind.RepeatedGraphics);
+    let sys = System {
+        relevant_components: sig,
+        entities: vec.create(sizeof Entity),
+        ecs: ecs,
+        update_fn: &repeated_render_system_update
+    };
+
+    return RepeatedRenderSystem {
+        s: sys,
+        r: r
+    };
+}
+
+def repeated_render_system_update(s: *System, ts: f32) {
+    let rs = s as *RepeatedRenderSystem;
+
+    for let i: usize = 0; i < s.entities.len; i += 1 {
+        let e = *(s.entities.get_ptr(i) as *Entity);
+        let graphics = s.ecs.get_component(e, ComponentKind.RepeatedGraphics) as *g.RepeatedGraphics;
+        let transform = s.ecs.get_component(e, ComponentKind.Transform) as *p.Transform;
+
+        let sprite = graphics.inner.sprite;
+
+        let single_dest = sdl.Rect {
+            x: transform.position.x as i32,
+            y: transform.position.y as i32,
+            w: sprite.rect.w,
+            h: sprite.rect.h
+        };
+
+        let orig_x = transform.position.x as i32;
+
+        for let y = 0; y < graphics.reps_h; y += 1 {
+            for let x = 0; x < graphics.reps_w; x += 1 {
+                g.render_sprite(rs.r, sprite, single_dest, graphics.inner.flip);
+                single_dest.x += single_dest.w;
+            }
+            single_dest.x = orig_x;
+            single_dest.y += single_dest.h;
+        }
     }
 }
 
@@ -84,7 +135,11 @@ type TextRenderSystem struct {
 }
 
 def text_render_system(ecs: *ECS, r: *sdl.Renderer): TextRenderSystem {
-    let sig = signature().with(ComponentKind.TextBox).with(ComponentKind.Interaction);
+    let sig = signature()
+        .with(ComponentKind.TextBox)
+        .with(ComponentKind.StrView)
+        .with(ComponentKind.Interaction);
+
     let sys = System {
         relevant_components: sig,
         entities: vec.create(sizeof Entity),
@@ -107,22 +162,23 @@ def text_render_system_update(s: *System, ts: f32) {
         let interact = s.ecs.get_component(e, ComponentKind.Interaction) as *Interaction;
 
         if interact.current_state == 0 {
-            text.chars_shown = 0;
+            interact.chars_shown = 0;
             continue;
         }
 
-        let content = text.dialog_text.offset(text.chars_shown);
+        let dialog_text = *(s.ecs.get_component(e, ComponentKind.StrView) as *str.View);
+        let content = dialog_text.offset(interact.chars_shown);
         let chars_shown = text.textbox.render(ts.r, content, 5);
 
         // reset after showing everything
         if chars_shown == 0 {
-            text.chars_shown = 0;
+            interact.chars_shown = 0;
             interact.current_state = interact.last_state = 0;
             continue;
         }
 
         if interact.last_state != interact.current_state && interact.last_state != 0 {
-            text.chars_shown += chars_shown;
+            interact.chars_shown += chars_shown;
         }
 
         interact.last_state = interact.current_state;
@@ -165,24 +221,29 @@ def animation_render_system_update(s: *System, ts: f32) {
             graphics.update_based_on_movement(movement.velocity.x, movement.velocity.y);
         }
 
-        let src = sdl.Rect {
+        let sprite = graphics.current_animation.current_sprite();
+        let dest = sdl.Rect {
             x: transform.position.x as i32,
             y: transform.position.y as i32,
-            w: transform.scale as i32 * 16,
-            h: transform.scale as i32 * 16
+            w: sprite.rect.w,
+            h: sprite.rect.h
         };
 
-        g.render_sprite(rs.r, graphics.current_animation.current_sprite(), src, graphics.flip);
+        g.render_sprite(rs.r, sprite, dest, graphics.flip);
     }
 }
 
 type DebugRenderSystem struct {
     s: System,
     renderer: *sdl.Renderer,
-    debug: *bool
+    debug: *bool,
+    font: text.Font,
+    delta_sum: f32,
+    frame_count: u32,
+    last_fps: u32
 }
 
-def debug_render_system(ecs: *ECS, r: *sdl.Renderer, debug: *bool): DebugRenderSystem {
+def debug_render_system(ecs: *ECS, r: *sdl.Renderer, debug: *bool, font: text.Font): DebugRenderSystem {
     let sig = signature()
         .with(ComponentKind.Transform)
         .with(ComponentKind.Hitbox);
@@ -197,7 +258,11 @@ def debug_render_system(ecs: *ECS, r: *sdl.Renderer, debug: *bool): DebugRenderS
     return DebugRenderSystem {
         s: sys,
         renderer: r,
-        debug: debug
+        debug: debug,
+        font: font,
+        delta_sum: 0.0,
+        frame_count: 0,
+        last_fps: 0
     };
 }
 
@@ -208,6 +273,33 @@ def debug_render_system_update(s: *System, ts: f32) {
     }
 
     ds.renderer.set_draw_color(255, 0, 0, 255);
+    ds.delta_sum += ts;
+    ds.frame_count += 1;
+
+    let fps_s = str.from("FPS: ");
+    defer fps_s.free();
+    let num_s = str.i64_to_string(ds.last_fps as i64);
+    fps_s.push(num_s.view());
+
+    for let i: usize = 0; i < fps_s.len(); i += 1 {
+        let c = *(fps_s.cstring() + i);
+        let sprite = ds.font.get_char(c);
+
+        let dest = sdl.Rect {
+            x: i as i32 * sprite.rect.w,
+            y: 2,
+            w: sprite.rect.w,
+            h: sprite.rect.h
+        };
+
+        g.render_sprite_simple(ds.renderer, &sprite, dest);
+    }
+
+    if ds.delta_sum >= 1000.0 {
+        ds.last_fps = ds.frame_count;
+        ds.delta_sum = 0.0;
+        ds.frame_count = 0;
+    }
 
     for let j: usize = 0; j < s.entities.len; j += 1 {
         let e = *(s.entities.get_ptr(j) as *Entity);
@@ -231,14 +323,11 @@ def debug_render_system_update(s: *System, ts: f32) {
 }
 
 type MovementSystem struct {
-    s: System,
-    input: *i.InputState
+    s: System
 }
 
-def movement_system(ecs: *ECS, movement: *i.InputState): MovementSystem {
+def movement_system(ecs: *ECS): MovementSystem {
     let sig = signature()
-        .with(ComponentKind.Input)
-        .with(ComponentKind.Movement)
         .with(ComponentKind.Transform)
         .with(ComponentKind.Movement);
 
@@ -250,58 +339,192 @@ def movement_system(ecs: *ECS, movement: *i.InputState): MovementSystem {
     };
 
     return MovementSystem {
-        s: sys,
-        input: movement
+        s: sys
     };
 }
 
 def movement_system_update(s: *System, ts: f32) {
-    let is = s as *MovementSystem;
+    let ms = s as *MovementSystem;
     for let j: usize = 0; j < s.entities.len; j += 1 {
         let e = *(s.entities.get_ptr(j) as *Entity);
         let transform = s.ecs.get_component(e, ComponentKind.Transform) as *p.Transform;
         let movement = s.ecs.get_component(e, ComponentKind.Movement) as *p.Movement;
 
-        movement.velocity = math.zero_vec2f();
+        movement.velocity = movement.velocity
+            .normalized()
+            .times(movement.speed);
 
+        transform.update_with_vel(movement.velocity, ts);
+    }
+}
+
+type InputSystem struct {
+    s: System,
+    input: *i.InputState
+}
+
+def input_system(ecs: *ECS, input: *i.InputState): InputSystem {
+    let sig = signature()
+        .with(ComponentKind.Input)
+        .with(ComponentKind.Movement);
+
+    let sys = System {
+        relevant_components: sig,
+        entities: vec.create(sizeof Entity),
+        ecs: ecs,
+        update_fn: &input_system_update
+    };
+
+    return InputSystem {
+        s: sys,
+        input: input
+    };
+}
+
+def input_system_update(s: *System, ts: f32) {
+    let ms = s as *InputSystem;
+    for let j: usize = 0; j < s.entities.len; j += 1 {
+        let e = *(s.entities.get_ptr(j) as *Entity);
+        let transform = s.ecs.get_component(e, ComponentKind.Transform) as *p.Transform;
+        let movement = s.ecs.get_component(e, ComponentKind.Movement) as *p.Movement;
         let input = s.ecs.get_component(e, ComponentKind.Input) as *Input;
+
+        movement.velocity = math.zero_vec2f();
         if !input.interacting {
-            if is.input.is_action_pressed(i.Action.Right) {
+            if ms.input.is_action_pressed(i.Action.Right) {
                 movement.velocity.x += 1.0;
             }
 
-            if is.input.is_action_pressed(i.Action.Left) {
+            if ms.input.is_action_pressed(i.Action.Left) {
                 movement.velocity.x -= 1.0;
             }
 
-            if is.input.is_action_pressed(i.Action.Down) {
+            if ms.input.is_action_pressed(i.Action.Down) {
                 movement.velocity.y += 1.0;
             }
 
-            if is.input.is_action_pressed(i.Action.Up) {
+            if ms.input.is_action_pressed(i.Action.Up) {
                 movement.velocity.y -= 1.0;
             }
-
-
-            movement.velocity = movement.velocity
-                .normalized()
-                .times(movement.speed);
-
-            transform.update_with_vel(movement.velocity, ts);
         }
+    }
+}
 
-        let now = sdl.now();
+
+type InteractionSystem struct {
+    s: System,
+    input: *i.InputState
+}
+
+def interaction_system(ecs: *ECS, interaction: *i.InputState): InteractionSystem {
+    let sig = signature()
+        .with(ComponentKind.Input)
+        .with(ComponentKind.Transform)
+        .with(ComponentKind.Hitbox);
+
+    let sys = System {
+        relevant_components: sig,
+        entities: vec.create(sizeof Entity),
+        ecs: ecs,
+        update_fn: &interaction_system_update
+    };
+
+    return InteractionSystem {
+        s: sys,
+        input: interaction
+    };
+}
+
+def interaction_system_update(s: *System, ts: f32) {
+    let now = sdl.now();
+
+    let is = s as *InteractionSystem;
+    for let j: usize = 0; j < s.entities.len; j += 1 {
+        let e = *(s.entities.get_ptr(j) as *Entity);
+
+        let transform = s.ecs.get_component(e, ComponentKind.Transform) as *p.Transform;
+        let input = s.ecs.get_component(e, ComponentKind.Input) as *Input;
+        let hitbox = *(s.ecs.get_component(e, ComponentKind.Hitbox) as *p.Hitbox);
+
         let can_interact = now - input.last_interact > interaction_cooldown;
         let trying_interact = can_interact && is.input.is_action_pressed(i.Action.Interact);
 
-        if !s.ecs.has_component(e, ComponentKind.Hitbox) {
-            continue;
-        }
-
-        let hitbox = *(s.ecs.get_component(e, ComponentKind.Hitbox) as *p.Hitbox);
         let rect = hitbox.as_absolute_rect(*transform);
 
-        // the quadratic complexity is irrelevant due to the very small (usually 1) amout of
+        // the quadratic complexity is irrelevant due to the very small (usually 1) amount of
+        // entities this system operates on
+        let hitbox_sig = signature()
+            .with(ComponentKind.Transform)
+            .with(ComponentKind.Interaction);
+
+        let hitbox_ents = s.ecs.entities_with_components(hitbox_sig);
+        for let k: usize = 0; k < hitbox_ents.len; k += 1 {
+            let other = *(hitbox_ents.entities + k);
+            if other.eq(e) {
+                continue;
+            }
+
+            let other_trans = *(s.ecs.get_component(other, ComponentKind.Transform) as *p.Transform);
+            let interact = s.ecs.get_component(other, ComponentKind.Interaction) as *Interaction;
+
+            let interact_hit = interact.hitbox;
+            let interact_rect = interact_hit.as_absolute_rect(other_trans);
+
+            let h_collision = 0;
+            let v_collision = 0;
+            p.rect_collisions(rect, interact_rect, &h_collision, &v_collision);
+            let colliding = h_collision != 0 && v_collision != 0;
+
+            if colliding {
+                input.interacting = interact.current_state != 0;
+            }
+
+            if !trying_interact {
+                continue;
+            }
+
+            input.last_interact = now;
+            // resetting this is left to the TextRenderSystem, which is not a pretty solution,
+            // but it works
+            if colliding {
+                interact.current_state += 1;
+            }
+        }
+    }
+}
+
+type CollisionSystem struct {
+    s: System
+}
+
+def collision_system(ecs: *ECS): CollisionSystem {
+    let sig = signature()
+        .with(ComponentKind.Transform)
+        .with(ComponentKind.Hitbox);
+
+    let sys = System {
+        relevant_components: sig,
+        entities: vec.create(sizeof Entity),
+        ecs: ecs,
+        update_fn: &collision_system_update
+    };
+
+    return CollisionSystem {
+        s: sys
+    };
+}
+
+def collision_system_update(s: *System, ts: f32) {
+    let cs = s as *CollisionSystem;
+    for let j: usize = 0; j < s.entities.len; j += 1 {
+        let e = *(s.entities.get_ptr(j) as *Entity);
+
+        let transform = s.ecs.get_component(e, ComponentKind.Transform) as *p.Transform;
+        let hitbox = *(s.ecs.get_component(e, ComponentKind.Hitbox) as *p.Hitbox);
+
+        let rect = hitbox.as_absolute_rect(*transform);
+
+        // the quadratic complexity is irrelevant due to the very small (usually 1) amount of
         // entities this system operates on
         let hitbox_sig = signature().with(ComponentKind.Transform).with(ComponentKind.Hitbox);
         let hitbox_ents = s.ecs.entities_with_components(hitbox_sig);
@@ -317,34 +540,6 @@ def movement_system_update(s: *System, ts: f32) {
             let other_rect = other_hit.as_absolute_rect(other_trans);
             // adjust transform so objects don't overlap
             p.resolve_collision(transform, hitbox, other_rect);
-
-            // if the interaction button was pressed, an interaction is possible and the other
-            // entity supports interaction
-            if !s.ecs.has_component(other, ComponentKind.Interaction) {
-                continue;
-            }
-
-            let interact = s.ecs.get_component(other, ComponentKind.Interaction) as *Interaction;
-            input.interacting = interact.current_state != 0;
-
-            if !trying_interact {
-                continue;
-            }
-
-            input.last_interact = now;
-
-            let interact_hit = interact.hitbox;
-            let interact_rect = interact_hit.as_absolute_rect(other_trans);
-
-            let h_collision = 0;
-            let v_collision = 0;
-            p.rect_collisions(rect, interact_rect, &h_collision, &v_collision);
-
-            // resetting this is left to the TextRenderSystem, which is not a pretty solution,
-            // but it works
-            if h_collision != 0 && v_collision != 0 {
-                interact.current_state += 1;
-            }
         }
     }
 }

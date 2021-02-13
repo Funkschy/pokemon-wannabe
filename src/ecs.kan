@@ -67,7 +67,8 @@ def create_ecs(): ECS {
     }
 
     for let i: usize = 0; i < num_ents; i += 1 {
-        let e = Entity { value: i as u32 };
+        let id = (num_ents - i) as u32;
+        let e = Entity { value: id };
         ecs.available_ents.push(&e as *void);
         let sig = Signature { bits: 0 };
         ecs.signatures.push(&sig as *void);
@@ -164,13 +165,9 @@ type ComponentList struct {
 def create_component_list(): ComponentList {
     let cl =  ComponentList {
         inner:      ptrvec.create(),
-        ent_to_idx: vec.with_cap(sizeof usize, num_ents),
-        idx_to_ent: vec.with_cap(sizeof Entity, num_ents)
+        ent_to_idx: vec.create(sizeof usize),
+        idx_to_ent: vec.create(sizeof Entity)
     };
-
-    // set unused elements to 0b11111...
-    cl.ent_to_idx.memset_unused(~0);
-    cl.idx_to_ent.memset_unused(~0);
 
     return cl;
 }

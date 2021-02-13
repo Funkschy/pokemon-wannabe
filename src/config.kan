@@ -1,16 +1,5 @@
-let g_tile_size: u32 = 8;
-
 let g_width: u32 = 160;
 let g_height: u32 = 144;
-
-let g_width_units: u32 = 0;
-let g_height_units: u32 = 0;
-
-let g_scale: u32 = 1;
-
-def tile_size(): u32 {
-    return g_tile_size;
-}
 
 def width(): u32 {
     return g_width;
@@ -18,20 +7,4 @@ def width(): u32 {
 
 def height(): u32 {
     return g_height;
-}
-
-def pixel_width(): u32 {
-    return g_width * g_scale;
-}
-
-def pixel_height(): u32 {
-    return g_height * g_scale;
-}
-
-def set_scale(val: u32) {
-    g_scale = val;
-}
-
-def scale(): u32 {
-    return g_scale;
 }

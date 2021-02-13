@@ -4,12 +4,11 @@ import "config";
 import "graphics" as g;
 
 type Transform struct {
-    position: math.Vec2f,
-    scale: u32
+    position: math.Vec2f
 }
 
 def (t: *Transform) update_with_vel(velocity: math.Vec2f, ts: f32) {
-    t.position = t.position.add(velocity.times(ts).times(config.scale() as f32));
+    t.position = t.position.add(velocity.times(ts));
 }
 
 type Hitbox struct {
@@ -25,22 +24,12 @@ def hitbox(x: u32, y: u32, w: u32, h: u32): Hitbox {
 }
 
 def (h: Hitbox) as_absolute_rect(transform: Transform): sdl.Rect {
-    let position = transform.position.add(h.relative_pos.times(config.scale() as f32));
+    let position = transform.position.add(h.relative_pos);
     return sdl.Rect {
         x: position.x as i32,
         y: position.y as i32,
-        w: h.size.x as i32 * (transform.scale as i32),
-        h: h.size.y as i32 * (transform.scale as i32)
-    };
-}
-
-def tile_rect(transform: Transform, hitbox: Hitbox): sdl.Rect {
-    let scale = (transform.scale * config.tile_size()) as i32;
-    return sdl.Rect {
-        x: transform.position.x as i32 / scale,
-        y: transform.position.y as i32 / scale,
-        w: (hitbox.size.x as u32 / config.tile_size()) as i32,
-        h: (hitbox.size.y as u32 / config.tile_size()) as i32
+        w: h.size.x as i32,
+        h: h.size.y as i32
     };
 }
 

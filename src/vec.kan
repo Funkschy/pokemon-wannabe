@@ -56,20 +56,6 @@ def (v: *Vec) set(i: usize, elem: *void) {
     }
 }
 
-def (v: *Vec) memset_unused(value: u32) {
-    if v.len < v.cap {
-        v.memset(v.len, v.cap, value);
-    }
-}
-
-// [start, end)
-def (v: *Vec) memset(start_idx: usize, end_idx: usize, value: u32) {
-    dbg.assert(start_idx < end_idx, "start_idx >= end_idx");
-    let start = v.elements + start_idx * v.elem_size;
-    let len = (end_idx - 1) * v.elem_size;
-    libc.memset(start, value, len);
-}
-
 def (v: *Vec) get(i: usize, ptr: *void): bool {
     if i >= 0 && i < v.len {
         libc.memcpy(ptr, v.elements + i * v.elem_size, v.elem_size);

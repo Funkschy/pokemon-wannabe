@@ -72,30 +72,29 @@ def is_word_sep(c: i8): bool {
 }
 
 def (tb: *TextBox) render(renderer: *sdl.Renderer, text: str.View, size: u32): usize {
-    let scale = config.scale() as i32;
-    let side_dist = 8 * scale;
-    let total_width = config.pixel_width() as i32 - 2 * side_dist;
+    let side_dist = 8;
+    let total_width = config.width() as i32 - 2 * side_dist;
 
     let dest = sdl.Rect {
         x: side_dist,
-        y: config.pixel_height() as i32 - element_height * scale - scale,
-        w: scale * element_width,
-        h: scale * element_height
+        y: config.height() as i32 - element_height,
+        w: element_width,
+        h: element_height
     };
     let left_end_rect = dest;
-    g.render_sprite(renderer, &tb.side, dest, sdl.RendererFlip.None);
+    g.render_sprite_simple(renderer, &tb.side, dest);
 
     let middle_width = total_width - 2 * dest.w;
     let middle_x = dest.x + dest.w;
     dest.x = middle_x;
     dest.w = middle_width;
-    g.render_sprite(renderer, &tb.middle, dest, sdl.RendererFlip.None);
+    g.render_sprite_simple(renderer, &tb.middle, dest);
 
-    dest.w = (config.scale() * size) as i32;
-    dest.h = (config.scale() * size) as i32;
-    dest.y += 2 * scale;
+    dest.w = size as i32;
+    dest.h = size as i32;
+    dest.y += 2;
 
-    let right_end = left_end_rect.x + scale * element_width + middle_width;
+    let right_end = left_end_rect.x + element_width + middle_width;
 
     let len = text.len;
     let s = text.data;
@@ -119,23 +118,23 @@ def (tb: *TextBox) render(renderer: *sdl.Renderer, text: str.View, size: u32): u
         }
 
         if dest.x + dest.w >= right_end || split_at_word || *(s + i) == '\n' {
-            dest.y += (size as i32 + 1) * scale;
+            dest.y += (size as i32 + 1);
             for let j = i + 1; j < len && *(s + j) == '\n'; j += 1 {
                 i += 1;
-                dest.y += (size as i32 + 1) * scale;
+                dest.y += (size as i32 + 1);
             }
             dest.x = middle_x;
 
             for ;i < len && is_word_sep(*(s + i)); i += 1 {}
 
-            if dest.y + dest.h >= config.pixel_height() as i32 {
+            if dest.y + dest.h >= config.height() as i32 {
                 ret = i;
                 break;
             }
         }
 
         let sprite = tb.font.get_char(*(s + i));
-        g.render_sprite(renderer, &sprite, dest, sdl.RendererFlip.None);
+        g.render_sprite_simple(renderer, &sprite, dest);
         dest.x += dest.w;
     }
 

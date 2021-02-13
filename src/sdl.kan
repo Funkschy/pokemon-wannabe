@@ -13,6 +13,12 @@ def (w: *Window) update_surface(): i32 {
     return SDL_UpdateWindowSurface(w);
 }
 
+def (w: *Window) size(): Point {
+    let p: Point = undefined;
+    SDL_GetWindowSize(w, &p.x, &p.y);
+    return p;
+}
+
 type Rect struct {
     x: i32,
     y: i32,
@@ -104,6 +110,14 @@ def (r: *Renderer) fill_rect(rect: *Rect): i32 {
 
 def (r: *Renderer) copy(t: *Texture, src: *Rect, dest: *Rect): i32 {
     return SDL_RenderCopy(r, t, src, dest);
+}
+
+def (r: *Renderer) set_logical_size(w: i32, h: i32): i32 {
+    return SDL_RenderSetLogicalSize(r, w, h);
+}
+
+def (r: *Renderer) set_integer_scale(enable: bool): i32 {
+    return SDL_RenderSetIntegerScale(r, enable);
 }
 
 def (r: *Renderer) copy_ex(
@@ -298,6 +312,7 @@ let sdl_init_joystick = 512;
 
 let sdl_window_centered = 805240832;
 let sdl_window_shown = 4;
+let sdl_window_resizeable = 32;
 
 let sdl_renderer_presentvsync = 4;
 
@@ -319,6 +334,10 @@ def window_centered(): i32 {
 
 def window_shown(): i32 {
     return sdl_window_shown;
+}
+
+def window_resizeable(): i32 {
+    return sdl_window_resizeable;
 }
 
 def present_vsync(): i32 {
@@ -352,6 +371,9 @@ extern def SDL_JoystickOpened(index: i32): bool;
 extern def SDL_JoystickGetHat(js: *Joystick, hat: i32): i8;
 extern def SDL_GetPerformanceCounter(): i64;
 extern def SDL_GetPerformanceFrequency(): i64;
+extern def SDL_RenderSetLogicalSize(r: *Renderer, w: i32, h: i32): i32;
+extern def SDL_GetWindowSize(w: *Window, w: *i32, h: *i32);
+extern def SDL_RenderSetIntegerScale(r: *Renderer, enable: bool): i32;
 
 type DisplayMode struct {
     format: u32, // pixel format

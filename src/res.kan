@@ -1,0 +1,46 @@
+import "io";
+import "sdl";
+import "graphics" as g;
+
+type Resource enum {
+    GirlSpriteSheet,
+    CatSpriteSheet,
+    ThotSpriteSheet,
+    BackgroundSpriteSheet,
+    ClockSpriteSheet,
+    GoblinSpriteSheet
+}
+
+// why am i using an unfinished language btw?
+let spritesheet_specs: [6]g.SpriteSheetSpec = undefined;
+let spritesheets: [6]g.SpriteSheet = undefined;
+
+def init_spritesheet_specs() {
+    let i = -1;
+    spritesheet_specs[i += 1] = g.spritesheet_spec(16, 16, "res/girl.png");
+    spritesheet_specs[i += 1] = g.spritesheet_spec(16, 16, "res/cat.png");
+    spritesheet_specs[i += 1] = g.spritesheet_spec(16, 16, "res/thot.png");
+    spritesheet_specs[i += 1] = g.spritesheet_spec(8, 8, "res/background.png");
+    spritesheet_specs[i += 1] = g.spritesheet_spec(16, 32, "res/clock.png");
+    spritesheet_specs[i += 1] = g.spritesheet_spec(16, 16, "res/goblin.png");
+}
+
+def load_spritesheets(renderer: *sdl.Renderer) {
+    for let i = 0; i < Resource.len; i += 1 {
+        let spec = spritesheet_specs[i];
+        if !g.load_spritesheet_from_png(renderer, spec, &spritesheets[i]) {
+            io.printf("Could not load sprite: %s\n", sdl.get_error());
+            return;
+        }
+    }
+}
+
+def get(res: Resource): *g.SpriteSheet {
+    return &spritesheets[res as i32];
+}
+
+def free() {
+    for let i = 0; i < Resource.len; i += 1 {
+        spritesheets[i].free();
+    }
+}

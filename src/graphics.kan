@@ -1,4 +1,5 @@
 import "sdl";
+import "config";
 
 extern def malloc(size: usize): *void;
 
@@ -75,11 +76,21 @@ type Sprite struct {
     rect: sdl.Rect
 }
 
-def render_sprite(r: *sdl.Renderer, s: *Sprite, dest: sdl.Rect, flip: sdl.RendererFlip) {
-    r.copy_ex(s.texture, &s.rect, &dest, 0.0, null, flip);
+def render_sprite_simple(r: *sdl.Renderer, s: *Sprite, dest: sdl.Rect) {
+    render_sprite_rot(r, s, dest, sdl.RendererFlip.None, 0.0);
 }
 
-def render_sprite_rot(r: *sdl.Renderer, s: *Sprite, dest: sdl.Rect, flip: sdl.RendererFlip, rotation: f64) {
+def render_sprite(r: *sdl.Renderer, s: *Sprite, dest: sdl.Rect, flip: sdl.RendererFlip) {
+    render_sprite_rot(r, s, dest, flip, 0.0);
+}
+
+def render_sprite_rot(
+    r: *sdl.Renderer,
+    s: *Sprite,
+    dest: sdl.Rect,
+    flip: sdl.RendererFlip,
+    rotation: f64
+) {
     r.copy_ex(s.texture, &s.rect, &dest, rotation, null, flip);
 }
 
@@ -132,11 +143,32 @@ def (a: *Animation) free() {
     delete a.sprites;
 }
 
+type RepeatedGraphics struct {
+    inner: Graphics,
+    reps_w: u32,
+    reps_h: u32
+}
+
+// components
+type Graphics struct {
+    sprite: *Sprite,
+    flip: sdl.RendererFlip
+}
+
 type AnimatedGraphics struct {
     animations: *Animation,
     num_animations: usize,
     current_animation: *Animation,
     flip: sdl.RendererFlip
+}
+
+def simple_anime(animations: *Animation, num_animations: usize): AnimatedGraphics {
+    return AnimatedGraphics {
+        animations: animations,
+        num_animations: num_animations,
+        current_animation: animations,
+        flip: sdl.RendererFlip.None
+    };
 }
 
 def (g: *AnimatedGraphics) update_based_on_movement(h_vel: f32, v_vel: f32) {
