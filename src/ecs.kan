@@ -117,12 +117,17 @@ def (ecs: *ECS) entities_with_components(required: Signature): EntityList {
     return list;
 }
 
-def (ecs: *ECS) add_component_to_entity(e: Entity, kind: components.ComponentKind, c: *void) {
+// this assumes, that the component was already added into the ComponentList, so we just
+// set the correct bits and update the systems
+def (ecs: *ECS) mark_component_as_added(e: Entity, kind: components.ComponentKind) {
     let cl = ecs.components.get_ptr(kind as i32 as usize) as *ComponentList;
-    cl.add_component_to_entity(e, c);
     let mask = 1 << (kind as i32);
 
     let sig = ecs.signatures.get_ptr(e.value as usize) as *Signature;
+    if sig.bits & mask > 0 {
+        // entity did already have component, so we don't need to do anything
+        return;
+    }
     sig.bits |= mask as u32;
 
     // update systems
@@ -130,6 +135,33 @@ def (ecs: *ECS) add_component_to_entity(e: Entity, kind: components.ComponentKin
         let sys = ecs.get_system(i);
         if (*sig).has_all(sys.relevant_components) && !sys.contains_entity(e) {
             sys.entities.push(&e as *void);
+        }
+    }
+}
+
+def (ecs: *ECS) add_component_to_entity(e: Entity, kind: components.ComponentKind, c: *void) {
+    let cl = ecs.components.get_ptr(kind as i32 as usize) as *ComponentList;
+    cl.add_component_to_entity(e, c);
+    ecs.mark_component_as_added(e, kind);
+}
+
+def (ecs: *ECS) remove_component_from_entity(e: Entity, kind: components.ComponentKind) {
+    let sig = ecs.signatures.get_ptr(e.value as usize) as *Signature;
+    let mask = 1 << (kind as i32);
+    if sig.bits & mask == 0 {
+        // entity did not have component, so we don't need to do anything
+        return;
+    }
+
+    let mask = ~mask;
+    sig.bits &= mask as u32;
+
+    // update systems
+    for let i: usize = 0; i < ecs.num_systems(); i += 1 {
+        let sys = ecs.get_system(i);
+        let entity_idx = sys.entity_idx(e);
+        if !(*sig).has_all(sys.relevant_components) && entity_idx >= 0 {
+            sys.entities.remove(entity_idx as usize);
         }
     }
 }
