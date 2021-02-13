@@ -311,10 +311,10 @@ def main() {
     defer game.input.free();
 
 
-    // let running = true;
-    // while running {
-    //     running = mainloop(&game);
-    // }
+    let running = true;
+    while running {
+        running = mainloop(&game);
+    }
 
-    emscripten_set_main_loop_arg(&mainloop, &game, -1, 1);
+    // emscripten_set_main_loop_arg(&mainloop, &game, -1, 1);
 }
