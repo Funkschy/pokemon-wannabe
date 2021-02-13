@@ -8,4 +8,4 @@
     ignore = dirty
 [submodule "src/std"]
 	path = src/std
-	url = git@github.com:Funkschy/kantan-std.git
+	url = https://github.com/Funkschy/kantan-std
