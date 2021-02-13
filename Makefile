@@ -36,12 +36,13 @@ $(SDL_IMAGE_BUILD_DIR) : $(SDL_IMAGE_DIR)
 	make -j4 && make install; \
 
 
-index.js : $(KANTAN_FILES)
+bin/index.js : $(KANTAN_FILES)
 	$(KANTAN_C) $(KANTAN_FILES) -o $(OBJ) -g -O2 --arch wasm32 && \
 	source ~/Downloads/emsdk/emsdk_env.sh && \
-	emcc $(OBJ) -s WASM=1 -s USE_SDL=2 -s USE_SDL_IMAGE=2 -s SDL2_IMAGE_FORMATS='["png"]' $(EMCC_PRELOADS) -o index.js
+	emcc $(OBJ) -s WASM=1 -s USE_SDL=2 -s USE_SDL_IMAGE=2 -s SDL2_IMAGE_FORMATS='["png"]' $(EMCC_PRELOADS) -o bin/index.js && \
+	rm $(OBJ)
 
 
 .PHONY: run
-run : index.js
-	python3 -m http.server 8080
+run : bin/index.js
+	cd bin && python3 -m http.server 8080
