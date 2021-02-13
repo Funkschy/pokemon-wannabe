@@ -1,4 +1,5 @@
-import "str";
+import ":std/str";
+
 import "text";
 import "ecs" as e;
 import "physics";

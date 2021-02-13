@@ -1,5 +1,6 @@
-import "vec";
-import "ptrvec";
+import ":std/vec";
+import ":std/ptrvec";
+
 import "components";
 import "systems" as sys;
 

@@ -1,6 +1,7 @@
-import "io";
+import ":std/io";
+import ":std/str";
+
 import "sdl";
-import "str";
 import "res";
 import "text";
 import "math";
@@ -107,8 +108,6 @@ def main() {
     let player_animations = arena.typed(sizeof g.Animation);
     defer player_animations.free();
 
-    let num_player_animations: usize = 4;
-    let player_anim = player_animations.alloc_array(num_player_animations) as *g.Animation;
 
     let player_spritesheet = res.get(res.Resource.GirlSpriteSheet);
     let player_idle = g.create_animation(player_spritesheet, 4, 0);
@@ -120,12 +119,13 @@ def main() {
     let player_run_horizontal = g.create_animation(player_spritesheet, 6, 16);
     defer player_run_horizontal.free();
 
-    *(player_anim + 0) = player_idle;
-    *(player_anim + 1) = player_run_down;
-    *(player_anim + 2) = player_run_up;
-    *(player_anim + 3) = player_run_horizontal;
+    let player_anim: [4]g.Animation = undefined;
+    player_anim[0] = player_idle;
+    player_anim[1] = player_run_down;
+    player_anim[2] = player_run_up;
+    player_anim[3] = player_run_horizontal;
 
-    let player_graphics = g.simple_anime(player_anim, 4);
+    let player_graphics = g.simple_anime(&player_anim[0], 4);
 
     let initial_pos = math.vec2f(5.0, 5.0);
     let player_transform = p.Transform { position: initial_pos };

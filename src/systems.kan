@@ -1,6 +1,7 @@
+import ":std/str";
+import ":std/vec";
+
 import "sdl";
-import "str";
-import "vec";
 import "text";
 import "math";
 import "input" as i;
@@ -23,13 +24,17 @@ type System struct {
 }
 
 def (s: *System) contains_entity(e: Entity): bool {
+    return s.entity_idx(e) >= 0;
+}
+
+def (s: *System) entity_idx(e: Entity): isize {
     for let i: usize = 0; i < s.entities.len; i += 1 {
         if e.eq(*(s.entities.get_ptr(i) as *Entity)) {
-            return true;
+            return i as isize;
         }
     }
 
-    return false;
+    return -1;
 }
 
 def (s: *System) update(ts: f32) {
@@ -167,7 +172,7 @@ def text_render_system_update(s: *System, ts: f32) {
         }
 
         let dialog_text = *(s.ecs.get_component(e, ComponentKind.StrView) as *str.View);
-        let content = dialog_text.offset(interact.chars_shown);
+        let content = dialog_text.drop(interact.chars_shown);
         let chars_shown = text.textbox.render(ts.r, content, 5);
 
         // reset after showing everything

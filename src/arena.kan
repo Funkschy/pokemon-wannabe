@@ -1,6 +1,6 @@
-import "dbg";
-import "libc";
-import "ptrvec";
+import ":std/dbg";
+import ":std/libc";
+import ":std/ptrvec";
 
 // the size of the Region (8 + 8 + 4080) is 4096 aka the standard page size on linux
 let region_size: usize = 4080;
@@ -50,20 +50,6 @@ def (a: *TypedArena) alloc(): *void {
 
     let ptr = &a.last.data[0] + a.last.len;
     a.last.len += a.elem_size;
-    return ptr as *void;
-}
-
-def (a: *TypedArena) alloc_array(len: usize): *void {
-    dbg.assert(len * a.elem_size < region_size, "trying too allocate more memory than region_size");
-
-    if a.last.len + len * a.elem_size > region_size {
-        let new_region = region();
-        a.last.next = new_region;
-        a.last = new_region;
-    }
-
-    let ptr = &a.last.data[0] + a.last.len;
-    a.last.len += len * a.elem_size;
     return ptr as *void;
 }
 
