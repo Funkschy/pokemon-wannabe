@@ -290,20 +290,7 @@ def debug_render_system_update(s: *System, ts: f32, cam: *Camera) {
     defer fps_s.free();
     let num_s = str.i64_to_string(ds.last_fps as i64);
     fps_s.push(num_s.view());
-
-    for let i: usize = 0; i < fps_s.len(); i += 1 {
-        let c = *(fps_s.cstring() + i);
-        let sprite = ds.font.get_char(c);
-
-        let dest = sdl.Rect {
-            x: i as i32 * sprite.rect.w,
-            y: 2,
-            w: sprite.rect.w,
-            h: sprite.rect.h
-        };
-
-        g.render_sprite_simple(ds.renderer, &sprite, dest);
-    }
+    text.render_text(ds.renderer, fps_s.view(), &ds.font, math.vec2f(2.0, 2.0), 0);
 
     if ds.delta_sum >= 1000.0 {
         ds.last_fps = ds.frame_count;

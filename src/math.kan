@@ -2,7 +2,7 @@
 extern def atan2f(y: f32, x: f32): f32;
 extern def sqrtf(x: f32): f32;
 
-def min(a: i32, b: i32): i32 {
+def [T] min(a: T, b: T): T {
     if a < b {
         return a;
     }

@@ -2,6 +2,7 @@ import ":std/io";
 import ":std/str";
 
 import "sdl";
+import "math";
 import "config";
 import "graphics" as g;
 
@@ -71,74 +72,104 @@ def is_word_sep(c: i8): bool {
     return c == ' ' || c == '\n';
 }
 
-def (tb: *TextBox) render(renderer: *sdl.Renderer, text: str.View, size: u32): usize {
-    let side_dist = 8;
-    let total_width = config.width() as i32 - 2 * side_dist;
+def render_text(renderer: *sdl.Renderer, text: str.View, font: *Font, pos: math.Vec2f, size: u32) {
+    if size == 0 {
+        size = font.get_char('A').rect.w;
+    }
 
+    for let i: usize = 0; i < text.len; i += 1 {
+        let c = text.at(i);
+        let sprite = font.get_char(c);
+
+        let dest = sdl.Rect {
+            x: pos.x as i32 + i as i32 * size,
+            y: pos.y as i32,
+            w: size as i32,
+            h: size as i32
+        };
+
+        g.render_sprite_simple(renderer, &sprite, dest);
+    }
+}
+
+def (tb: *TextBox) render_box(renderer: *sdl.Renderer, size: u32, side_dist: i32, total_width: i32) {
+    let start_height = config.height() as i32 - element_height;
     let dest = sdl.Rect {
         x: side_dist,
-        y: config.height() as i32 - element_height,
+        y: start_height,
         w: element_width,
         h: element_height
     };
-    let left_end_rect = dest;
     g.render_sprite_simple(renderer, &tb.side, dest);
 
-    let middle_width = total_width - 2 * dest.w;
+    let middle_width = total_width - 2 * element_width;
     let middle_x = dest.x + dest.w;
     dest.x = middle_x;
     dest.w = middle_width;
     g.render_sprite_simple(renderer, &tb.middle, dest);
 
-    dest.w = size as i32;
-    dest.h = size as i32;
-    dest.y += 2;
+    dest.x = side_dist + middle_width + element_width;
+    dest.w = element_width;
+    g.render_sprite(renderer, &tb.side, dest, sdl.RendererFlip.Horizontal);
+}
 
-    let right_end = left_end_rect.x + element_width + middle_width;
+def (tb: *TextBox) render(renderer: *sdl.Renderer, text: str.View, size: u32): usize {
+    let char_height = size;
 
-    let len = text.len;
-    let s = text.data;
-    let ret: usize = text.len;
+    let screen_side_dist = 8;
+    let total_width = config.width() - 2 * screen_side_dist;
+    let available_rows = element_height / char_height;
 
-    for let i: usize = 0; i < len; i += 1 {
-        let split_at_word = false;
-        if *(s + i) == ' ' {
-            let j = i + 1;
-            for ;j < len && *(s + j) == ' '; j += 1 {
-                i += 1;
-            }
+    let border_side_dist = 2;
+    let line_dist = 1;
 
-            let word_len = 1;
-            for ;j < len && !is_word_sep(*(s + j)); j += 1 {
-                word_len += 1;
-            }
+    let start_height = config.height() as i32 - element_height;
+    tb.render_box(renderer, size, screen_side_dist, total_width);
 
-            split_at_word = dest.x + dest.w * word_len > right_end
-                            && left_end_rect.x + dest.w * word_len < right_end;
-        }
+    let dest = sdl.Rect {
+        x: screen_side_dist,
+        y: start_height,
+        w: size,
+        h: size
+    };
 
-        if dest.x + dest.w >= right_end || split_at_word || *(s + i) == '\n' {
-            dest.y += (size as i32 + 1);
-            for let j = i + 1; j < len && *(s + j) == '\n'; j += 1 {
-                i += 1;
-                dest.y += (size as i32 + 1);
-            }
-            dest.x = middle_x;
+    let possible_chars_per_row = (total_width / size) as usize;
+    let num_printed_chars: usize = 0;
 
-            for ;i < len && is_word_sep(*(s + i)); i += 1 {}
-
-            if dest.y + dest.h >= config.height() as i32 {
-                ret = i;
-                break;
-            }
-        }
-
-        let sprite = tb.font.get_char(*(s + i));
-        g.render_sprite_simple(renderer, &sprite, dest);
-        dest.x += dest.w;
+    // skip new lines at the beginning of the text
+    while text.len > 0 && text.at(0) == '\n' {
+        num_printed_chars += 1;
+        text = text.drop(1);
     }
 
-    left_end_rect.x = right_end;
-    g.render_sprite(renderer, &tb.side, left_end_rect, sdl.RendererFlip.Horizontal);
-    return ret;
+    for let row = 0; row < available_rows && text.len > 0; row += 1 {
+        if text.at(0) == '\n' {
+            num_printed_chars += 1;
+            text = text.drop(1);
+            continue;
+        }
+
+        let last_fitting_word_start = possible_chars_per_row;
+        if possible_chars_per_row < text.len {
+            for ; last_fitting_word_start > 0; last_fitting_word_start -= 1 {
+                // cut at word boundary instead of the middle of the word
+                if text.at(last_fitting_word_start - 1) == ' ' {
+                    break;
+                }
+            }
+        }
+
+        let new_line_idx = text.find(str.view("\n", 1));
+        // either stop at the first new line or after the last fitting word
+        let row_length = math.min(new_line_idx, last_fitting_word_start);
+
+        let x = (border_side_dist + screen_side_dist) as f32;
+        let y = (border_side_dist + start_height + row * (char_height + line_dist)) as f32;
+        render_text(renderer, text.take(row_length), &tb.font, math.vec2f(x, y), size);
+
+        num_printed_chars += row_length;
+        text = text.drop(row_length);
+    }
+
+    return num_printed_chars;
 }
