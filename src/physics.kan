@@ -7,6 +7,12 @@ type Transform struct {
     position: math.Vec2f
 }
 
+def transform(x: f32, y: f32): Transform {
+    return Transform {
+        position: math.vec2f(x, y)
+    };
+}
+
 def (t: *Transform) update_with_vel(velocity: math.Vec2f, ts: f32) {
     t.position = t.position.add(velocity.times(ts));
 }

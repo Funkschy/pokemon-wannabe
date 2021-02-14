@@ -203,6 +203,8 @@ def main() {
 
     // --- wall ---
     let background_spritesheet = res.get(res.Resource.BackgroundSpriteSheet);
+    let background_tile_size = 8;
+    let background_tile_sizef = 8.0;
 
     let wall_h = 16;
     let wall_transform = p.Transform {
@@ -216,7 +218,7 @@ def main() {
 
     let wall_rep = g.RepeatedGraphics {
         inner: wall_graphics,
-        reps_w: config.width() / 8,
+        reps_w: config.width() / background_tile_size,
         reps_h: 2
     };
     let wall_hitbox = p.hitbox (0, 0, config.width(), wall_h);
@@ -232,8 +234,8 @@ def main() {
     };
     let floor_rep = g.RepeatedGraphics {
         inner: floor_graphics,
-        reps_w: config.width() / 8,
-        reps_h: (config.height() - wall_h) / 8
+        reps_w: config.width() / background_tile_size,
+        reps_h: (config.height() - wall_h) / background_tile_size
     };
 
     let floor_sprite2 = background_spritesheet.get(2, 0);
@@ -243,9 +245,51 @@ def main() {
     };
     let floor_rep2 = g.RepeatedGraphics {
         inner: floor_graphics2,
-        reps_w: config.width() / 8,
-        reps_h: (config.height() - wall_h) / 8
+        reps_w: config.width() /  background_tile_size,
+        reps_h: (config.height() - wall_h) /  background_tile_size
     };
+
+    // --- grass ---
+    let grass_tiles = 100.0;
+    let grass_size = grass_tiles * background_tile_sizef;
+    let grass_transform = p.Transform {
+        position: math.vec2f(-grass_size/2.0, -grass_size/2.0)
+    };
+    let grass_sprite = background_spritesheet.get(3, 0);
+    let grass_graphics = g.Graphics {
+        sprite: &grass_sprite,
+        flip: sdl.RendererFlip.None
+    };
+    let grass_rep = g.RepeatedGraphics {
+        inner: grass_graphics,
+        reps_w: grass_tiles as i32,
+        reps_h: grass_tiles as i32
+    };
+
+    // --- bush ---
+    let num_bushes = 5;
+    let bushes: [5]p.Transform = undefined;
+    {
+        let i = -1;
+        bushes[i += 1] = p.transform(5.0  * background_tile_sizef, 4.0  * background_tile_sizef);
+        bushes[i += 1] = p.transform(-3.0 * background_tile_sizef, 1.0  * background_tile_sizef);
+        bushes[i += 1] = p.transform(-6.0 * background_tile_sizef, -3.0 * background_tile_sizef);
+        bushes[i += 1] = p.transform(2.0  * background_tile_sizef, 2.0  * background_tile_sizef);
+        bushes[i += 1] = p.transform(3.0  * background_tile_sizef, -3.0 * background_tile_sizef);
+    }
+
+    let bush_sprite = background_spritesheet.get(0, 1);
+    let bush_graphics = g.Graphics {
+        sprite: &bush_sprite,
+        flip: sdl.RendererFlip.None
+    };
+    // bush is a repeated graphics (even tho we currently don't repeat it), so that it's in the bg
+    let bush_rep = g.RepeatedGraphics {
+        inner: bush_graphics,
+        reps_w: 1,
+        reps_h: 1
+    };
+
 
     // --- clock ---
     let clock_sprite = res.get(res.Resource.ClockSpriteSheet).get(0, 0);
@@ -342,10 +386,16 @@ def main() {
         .add_component(ComponentKind.TextBox, &textbox_component as *void)
         .add_component(ComponentKind.Interaction, &thot_dialog as *void)
         .add_component(ComponentKind.StrView, &thot_dialog_text as *void);
-    // floor
+    // grass
     outside.add_entity()
-        .add_component(ComponentKind.Transform, &floor_transform as *void)
-        .add_component(ComponentKind.RepeatedGraphics, &floor_rep2 as *void);
+        .add_component(ComponentKind.Transform, &grass_transform as *void)
+        .add_component(ComponentKind.RepeatedGraphics, &grass_rep as *void);
+    // bush
+    for let i = 0; i < num_bushes; i += 1 {
+        outside.add_entity()
+            .add_component(ComponentKind.Transform, &bushes[i] as *void)
+            .add_component(ComponentKind.RepeatedGraphics, &bush_rep as *void);
+    }
 
     game.scenes[1] = outside;
 
