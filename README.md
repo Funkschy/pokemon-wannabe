@@ -1,6 +1,6 @@
 # Pokemon wannabe
 
-A small tech demo, which shows how you could use kantan for game development.
+A small tech demo, which shows how you could use [Kantan](https://github.com/funkschy/kantan-lang) for game development.
 
 ## Getting started
 If you just want to check out the "game", you can try it on https://funkschy.github.io/pokemon-wannabe/
