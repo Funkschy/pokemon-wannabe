@@ -1,0 +1,52 @@
+import ":std/vec";
+
+import "ecs";
+import "math";
+import "components" as c;
+
+type ComponentData struct {
+    kind: c.ComponentKind,
+    data: *void
+}
+
+type EntityData struct {
+    components: vec.Vec // vec.Vec[ComponentData]
+}
+
+def (e: *EntityData) add_component(kind: c.ComponentKind, data: *void): *EntityData {
+    let c = ComponentData { kind: kind, data: data };
+    e.components.push(&c as *void);
+    return e;
+}
+
+type Scene struct {
+    camera_relative_to: *math.Vec2f,
+    entities: vec.Vec // vec.Vec[EntityData]
+}
+
+def create(camera_relative_to: *math.Vec2f): Scene {
+    return Scene {
+        camera_relative_to: camera_relative_to,
+        entities: vec.create(sizeof EntityData)
+    };
+}
+
+def (s: *Scene) add_entity(): *EntityData {
+    let e = EntityData { components: vec.create(sizeof ComponentData) };
+    let idx = s.entities.len;
+    s.entities.push(&e as *void);
+    return s.entities.get_ptr(idx) as *EntityData;
+}
+
+def (s: *Scene) load(ecs: *ecs.ECS) {
+    ecs.clear();
+
+    for let i: usize = 0; i < s.entities.len; i += 1 {
+        let data = s.entities.get_ptr(i) as *EntityData;
+        let e = ecs.create_entity();
+        for let j: usize = 0; j < data.components.len; j += 1 {
+            let c_data = data.components.get_ptr(j) as *ComponentData;
+            ecs.add_component_to_entity(e, c_data.kind, c_data.data);
+        }
+    }
+}

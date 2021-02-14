@@ -48,6 +48,7 @@ type EntityList struct {
 type ECS struct {
     // accessed by Entity.value, holds Signatures
     signatures:     vec.Vec,    // vec.Vec[Signature]
+    used_ents:      vec.Vec,    // vec.Vec[Entity]
     available_ents: vec.Vec,    // vec.Vec[Entity]
     components:     vec.Vec,    // vec.Vec[ComponentList]
     systems:        ptrvec.Vec  // ptrvec.Vec[*sys.System]
@@ -58,6 +59,7 @@ def create_ecs(): ECS {
 
     let ecs = ECS {
         signatures:     vec.with_cap(sizeof Signature, num_ents),
+        used_ents:      vec.with_cap(sizeof Entity, num_ents),
         available_ents: vec.with_cap(sizeof Entity, num_ents),
         components:     vec.with_cap(sizeof ComponentList, num_component_variants),
         systems:        ptrvec.create()
@@ -78,9 +80,28 @@ def create_ecs(): ECS {
     return ecs;
 }
 
+def (ecs: *ECS) clear() {
+    for let i: usize = 0; i < ecs.components.len; i += 1 {
+        let cl = ecs.components.get_ptr(i) as *ComponentList;
+        cl.clear();
+    }
+
+    for let i: usize = 0; i < ecs.used_ents.len; i += 1 {
+        let e = ecs.used_ents.get_ptr(i);
+        ecs.available_ents.push(e);
+    }
+    for let i: usize = 0; i < ecs.num_systems(); i += 1 {
+        let sys = ecs.get_system(i);
+        sys.entities.len = 0;
+    }
+    ecs.used_ents.len = 0;
+    ecs.signatures.init_zero();
+}
+
 def (ecs: *ECS) free() {
     ecs.signatures.free();
     ecs.available_ents.free();
+    ecs.used_ents.free();
 
     for let i: usize = 0; i < ecs.num_systems(); i += 1 {
         ecs.get_system(i).free();
@@ -102,6 +123,7 @@ def (ecs: *ECS) set_component_list(i: usize, cl: ComponentList) {
 def (ecs: *ECS) create_entity(): Entity {
     let e: Entity = undefined;
     ecs.available_ents.pop_last(&e as *void);
+    ecs.used_ents.push(&e as *void);
     return e;
 }
 
@@ -203,6 +225,12 @@ def create_component_list(): ComponentList {
     };
 
     return cl;
+}
+
+def (cl: *ComponentList) clear() {
+    cl.inner.len = 0;
+    cl.ent_to_idx.len = 0;
+    cl.idx_to_ent.len = 0;
 }
 
 def (cl: *ComponentList) free() {

@@ -19,8 +19,7 @@ def (f: *Font) free() {
 
 def (f: *Font) get_char(c: i8): g.Sprite {
     let upper = c - 32 * ((c >= 'a' && c <= 'z') as i8);
-    let idx = (upper - ',' + 1) as i32;
-    idx *= (upper >= ',' || upper <= 'Z') as i32;
+    let idx = (upper - (',' + 1)) as i32;
 
     return f.spritesheet.get(idx % chars_per_row, idx / chars_per_row);
 }

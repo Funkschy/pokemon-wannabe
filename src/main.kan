@@ -5,6 +5,7 @@ import "sdl";
 import "res";
 import "text";
 import "math";
+import "scene";
 import "config";
 import "ecs" as _;
 import "arena";
@@ -22,14 +23,14 @@ type Game struct {
     debug: bool,
     renderer: *sdl.Renderer,
     window: *sdl.Window,
-    // these 2 can be swapped to change the camera perspective
-    relative_to: *math.Vec2f,
-    other_relative_to: *math.Vec2f,
+    scenes: [2]scene.Scene,
+    current_scene: *scene.Scene,
     last: i64,
     input: i.InputState,
     ecs: ECS
 }
 
+let center: math.Vec2f = undefined;
 def mainloop(g: *Game): bool {
     let e: sdl.Event = undefined;
     let delta = sdl.delta(g.last) as f32;
@@ -42,14 +43,15 @@ def mainloop(g: *Game): bool {
 
         if e.common.kind == sdl.EventKind.KeyDown && e.key_event.keysym.sym == 'g' {
             g.debug = !g.debug;
-            io.printf("debug %d\n", g.debug);
+            let current_scene_index = (g.current_scene - &g.scenes[0]) / sizeof scene.Scene;
+            io.printf("debug %d, scene: %d\n", g.debug, current_scene_index);
             continue;
         }
 
         if e.common.kind == sdl.EventKind.KeyDown && e.key_event.keysym.sym == 'p' {
-            let t = g.relative_to;
-            g.relative_to = g.other_relative_to;
-            g.other_relative_to = t;
+            let current_scene_index = (g.current_scene - &g.scenes[0]) / sizeof scene.Scene;
+            g.current_scene = &g.scenes[(current_scene_index + 1) % 2];
+            g.current_scene.load(&g.ecs);
             continue;
         }
 
@@ -59,8 +61,9 @@ def mainloop(g: *Game): bool {
     g.renderer.set_draw_color(0, 19, 26, 255);
     g.renderer.clear();
 
+    let camera = s.Camera { center: center, relative_to: g.current_scene.camera_relative_to };
     for let i: usize = 0; i < g.ecs.num_systems(); i += 1 {
-        g.ecs.get_system(i).update(delta);
+        g.ecs.get_system(i).update(delta, &camera);
     }
     g.renderer.present();
 
@@ -88,7 +91,7 @@ def main() {
     let widthf = width as f32;
     let heightf = height as f32;
 
-    let center = math.vec2f(widthf / 2.0, heightf / 2.0);
+    center = math.vec2f(widthf / 2.0, heightf / 2.0);
 
     let window = sdl.create_window(
         "Quasi Pokemon",
@@ -119,9 +122,9 @@ def main() {
     res.load_spritesheets(game.renderer);
     defer res.free();
 
+    // --- Player ---
     let player_animations = arena.typed(sizeof g.Animation);
     defer player_animations.free();
-
 
     let player_spritesheet = res.get(res.Resource.GirlSpriteSheet);
     let player_idle = g.create_animation(player_spritesheet, 4, 0);
@@ -155,54 +158,10 @@ def main() {
         speed: 0.1
     };
 
-    game.ecs = create_ecs();
-    defer game.ecs.free();
+    let npc_hitbox = p.hitbox (0, 0, 16, 16);
 
     let textbox = text.load(game.renderer);
     defer textbox.free();
-
-    let zero = math.vec2f(0.0, 0.0);
-    game.relative_to = &zero;
-    game.other_relative_to = &player_transform.position;
-    let rel_pos = &game.relative_to;
-
-    // systems are popped last to first, so the last sys runs first
-    let repeated_render_sys = s.repeated_render_system(&game.ecs, game.renderer, center, rel_pos);
-    game.ecs.add_system(&repeated_render_sys.s);
-
-    let anim_render_sys = s.animation_render_system(&game.ecs, game.renderer, center, rel_pos);
-    game.ecs.add_system(&anim_render_sys.s);
-
-    let sprite_render_sys = s.sprite_render_system(&game.ecs, game.renderer, center, rel_pos);
-    game.ecs.add_system(&sprite_render_sys.s);
-
-    let text_render_sys = s.text_render_system(&game.ecs, game.renderer);
-    game.ecs.add_system(&text_render_sys.s);
-
-    let movement_sys = s.movement_system(&game.ecs);
-    game.ecs.add_system(&movement_sys.s);
-
-    let input_sys = s.input_system(&game.ecs, &game.input);
-    game.ecs.add_system(&input_sys.s);
-
-    let collision_sys = s.collision_system(&game.ecs);
-    game.ecs.add_system(&collision_sys.s);
-
-    let interaction_sys = s.interaction_system(&game.ecs, &game.input);
-    game.ecs.add_system(&interaction_sys.s);
-
-    let debug_render_sys = s.debug_render_system(&game.ecs, game.renderer, &game.debug, textbox.font, center, rel_pos);
-    game.ecs.add_system(&debug_render_sys.s);
-
-    // --- player ---
-    let player = game.ecs.create_entity();
-    game.ecs.add_component_to_entity(player, ComponentKind.Input, &input as *void);
-    game.ecs.add_component_to_entity(player, ComponentKind.Movement, &player_movement as *void);
-    game.ecs.add_component_to_entity(player, ComponentKind.AnimatedGraphics, &player_graphics as *void);
-    game.ecs.add_component_to_entity(player, ComponentKind.Transform, &player_transform as *void);
-    game.ecs.add_component_to_entity(player, ComponentKind.Hitbox, &player_hitbox as *void);
-
-    let npc_hitbox = p.hitbox (0, 0, 16, 16);
 
     let textbox_component = TextBox {
         textbox: &textbox
@@ -225,17 +184,6 @@ def main() {
     let cat_initial_pos = math.vec2f(-30.0, -30.0);
     let cat_transform = p.Transform { position: cat_initial_pos };
 
-    let cat = game.ecs.create_entity();
-    game.ecs.add_component_to_entity(cat, ComponentKind.AnimatedGraphics, &cat_graphics as *void);
-    game.ecs.add_component_to_entity(cat, ComponentKind.Transform, &cat_transform as *void);
-    game.ecs.add_component_to_entity(cat, ComponentKind.Hitbox, &npc_hitbox as *void);
-    game.ecs.add_component_to_entity(cat, ComponentKind.Interaction, &cat_dialog as *void);
-
-    let cat_text = game.ecs.create_entity();
-    game.ecs.add_component_to_entity(cat_text, ComponentKind.TextBox, &textbox_component as *void);
-    game.ecs.add_component_to_entity(cat_text, ComponentKind.Interaction, &cat_dialog as *void);
-    game.ecs.add_component_to_entity(cat_text, ComponentKind.StrView, &cat_dialog_text as *void);
-
     // --- thot ---
     let thot_anim = g.create_animation(res.get(res.Resource.ThotSpriteSheet), 8, 0);
     defer thot_anim.free();
@@ -252,17 +200,6 @@ def main() {
     let thot_dialog_text = str.view_from(
         "Follow me on twitch, Instagram, Snapchat, Twitter, Youtube\nand onlyfans"
     );
-
-    let thot = game.ecs.create_entity();
-    game.ecs.add_component_to_entity(thot, ComponentKind.Hitbox, &npc_hitbox as *void);
-    game.ecs.add_component_to_entity(thot, ComponentKind.Transform, &thot_transform as *void);
-    game.ecs.add_component_to_entity(thot, ComponentKind.AnimatedGraphics, &thot_graphics as *void);
-    game.ecs.add_component_to_entity(thot, ComponentKind.Interaction, &thot_dialog as *void);
-
-    let thot_text = game.ecs.create_entity();
-    game.ecs.add_component_to_entity(thot_text, ComponentKind.TextBox, &textbox_component as *void);
-    game.ecs.add_component_to_entity(thot_text, ComponentKind.Interaction, &thot_dialog as *void);
-    game.ecs.add_component_to_entity(thot_text, ComponentKind.StrView, &thot_dialog_text as *void);
 
     // --- wall ---
     let background_spritesheet = res.get(res.Resource.BackgroundSpriteSheet);
@@ -284,11 +221,6 @@ def main() {
     };
     let wall_hitbox = p.hitbox (0, 0, config.width(), wall_h);
 
-    let wall = game.ecs.create_entity();
-    game.ecs.add_component_to_entity(wall, ComponentKind.Transform, &wall_transform as *void);
-    game.ecs.add_component_to_entity(wall, ComponentKind.RepeatedGraphics, &wall_rep as *void);
-    game.ecs.add_component_to_entity(wall, ComponentKind.Hitbox, &wall_hitbox as *void);
-
     // --- floor ---
     let floor_transform = p.Transform {
         position: math.vec2f(-center.x, wall_h as f32 - center.y)
@@ -298,19 +230,24 @@ def main() {
         sprite: &floor_sprite,
         flip: sdl.RendererFlip.None
     };
-
     let floor_rep = g.RepeatedGraphics {
         inner: floor_graphics,
         reps_w: config.width() / 8,
         reps_h: (config.height() - wall_h) / 8
     };
 
-    let floor = game.ecs.create_entity();
-    game.ecs.add_component_to_entity(floor, ComponentKind.Transform, &floor_transform as *void);
-    game.ecs.add_component_to_entity(floor, ComponentKind.RepeatedGraphics, &floor_rep as *void);
+    let floor_sprite2 = background_spritesheet.get(2, 0);
+    let floor_graphics2 = g.Graphics {
+        sprite: &floor_sprite2,
+        flip: sdl.RendererFlip.None
+    };
+    let floor_rep2 = g.RepeatedGraphics {
+        inner: floor_graphics2,
+        reps_w: config.width() / 8,
+        reps_h: (config.height() - wall_h) / 8
+    };
 
-    // --- Clock ---
-
+    // --- clock ---
     let clock_sprite = res.get(res.Resource.ClockSpriteSheet).get(0, 0);
     let clock_graphics = g.Graphics {
         sprite: &clock_sprite,
@@ -320,10 +257,100 @@ def main() {
     let clock_transform = p.Transform { position: clock_initial_pos };
     let clock_hitbox = p.hitbox (0, 16, 16, 16);
 
-    let clock = game.ecs.create_entity();
-    game.ecs.add_component_to_entity(clock, ComponentKind.Transform, &clock_transform as *void);
-    game.ecs.add_component_to_entity(clock, ComponentKind.Graphics, &clock_graphics as *void);
-    game.ecs.add_component_to_entity(clock, ComponentKind.Hitbox, &clock_hitbox as *void);
+    game.ecs = create_ecs();
+    defer game.ecs.free();
+
+    // systems are popped last to first, so the last sys runs first
+    let repeated_render_sys = s.repeated_render_system(&game.ecs, game.renderer);
+    game.ecs.add_system(&repeated_render_sys.s);
+
+    let anim_render_sys = s.animation_render_system(&game.ecs, game.renderer);
+    game.ecs.add_system(&anim_render_sys.s);
+
+    let sprite_render_sys = s.sprite_render_system(&game.ecs, game.renderer);
+    game.ecs.add_system(&sprite_render_sys.s);
+
+    let text_render_sys = s.text_render_system(&game.ecs, game.renderer);
+    game.ecs.add_system(&text_render_sys.s);
+
+    let movement_sys = s.movement_system(&game.ecs);
+    game.ecs.add_system(&movement_sys.s);
+
+    let input_sys = s.input_system(&game.ecs, &game.input);
+    game.ecs.add_system(&input_sys.s);
+
+    let collision_sys = s.collision_system(&game.ecs);
+    game.ecs.add_system(&collision_sys.s);
+
+    let interaction_sys = s.interaction_system(&game.ecs, &game.input);
+    game.ecs.add_system(&interaction_sys.s);
+
+    let debug_render_sys = s.debug_render_system(&game.ecs, game.renderer, &game.debug, textbox.font);
+    game.ecs.add_system(&debug_render_sys.s);
+
+    let zero = math.vec2f(0.0, 0.0);
+    let start_room = scene.create(&zero);
+    // player
+    start_room.add_entity()
+        .add_component(ComponentKind.AnimatedGraphics, &player_graphics as *void)
+        .add_component(ComponentKind.Transform, &player_transform as *void)
+        .add_component(ComponentKind.Input, &input as *void)
+        .add_component(ComponentKind.Movement, &player_movement as *void)
+        .add_component(ComponentKind.Hitbox, &player_hitbox as *void);
+    // wall
+    start_room.add_entity()
+        .add_component(ComponentKind.Transform, &wall_transform as *void)
+        .add_component(ComponentKind.RepeatedGraphics, &wall_rep as *void)
+        .add_component(ComponentKind.Hitbox, &wall_hitbox as *void);
+    // floor
+    start_room.add_entity()
+        .add_component(ComponentKind.Transform, &floor_transform as *void)
+        .add_component(ComponentKind.RepeatedGraphics, &floor_rep as *void);
+    // clock
+    start_room.add_entity()
+        .add_component(ComponentKind.Transform, &clock_transform as *void)
+        .add_component(ComponentKind.Graphics, &clock_graphics as *void)
+        .add_component(ComponentKind.Hitbox, &clock_hitbox as *void);
+
+    game.scenes[0] = start_room;
+
+    let outside = scene.create(&player_transform.position);
+    // player
+    outside.add_entity()
+        .add_component(ComponentKind.AnimatedGraphics, &player_graphics as *void)
+        .add_component(ComponentKind.Transform, &player_transform as *void)
+        .add_component(ComponentKind.Input, &input as *void)
+        .add_component(ComponentKind.Movement, &player_movement as *void)
+        .add_component(ComponentKind.Hitbox, &player_hitbox as *void);
+    // cat
+    outside.add_entity()
+        .add_component(ComponentKind.AnimatedGraphics, &cat_graphics as *void)
+        .add_component(ComponentKind.Transform, &cat_transform as *void)
+        .add_component(ComponentKind.Hitbox, &npc_hitbox as *void)
+        .add_component(ComponentKind.Interaction, &cat_dialog as *void);
+    outside.add_entity()
+        .add_component(ComponentKind.TextBox, &textbox_component as *void)
+        .add_component(ComponentKind.Interaction, &cat_dialog as *void)
+        .add_component(ComponentKind.StrView, &cat_dialog_text as *void);
+    // thot
+    outside.add_entity()
+        .add_component(ComponentKind.AnimatedGraphics, &thot_graphics as *void)
+        .add_component(ComponentKind.Transform, &thot_transform as *void)
+        .add_component(ComponentKind.Hitbox, &npc_hitbox as *void)
+        .add_component(ComponentKind.Interaction, &thot_dialog as *void);
+    outside.add_entity()
+        .add_component(ComponentKind.TextBox, &textbox_component as *void)
+        .add_component(ComponentKind.Interaction, &thot_dialog as *void)
+        .add_component(ComponentKind.StrView, &thot_dialog_text as *void);
+    // floor
+    outside.add_entity()
+        .add_component(ComponentKind.Transform, &floor_transform as *void)
+        .add_component(ComponentKind.RepeatedGraphics, &floor_rep2 as *void);
+
+    game.scenes[1] = outside;
+
+    game.current_scene = &game.scenes[0];
+    game.current_scene.load(&game.ecs);
 
     game.last = sdl.now();
     game.input = i.init_input_map();

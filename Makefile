@@ -9,9 +9,16 @@ SDL_IMAGE_BUILD_DIR := $(realpath $(SDL_IMAGE_DIR))/build
 
 EMCC_PRELOADS = --use-preload-plugins $(addprefix --preload-file ,$(shell find res -name '*.png'))
 
+ASEPRITE ?= /opt/aseprite/aseprite
 KANTAN_C ?= /usr/local/bin/kantan
 KANTAN_FILES = $(shell find src -name '*.kan')
 OBJ = game.o
+
+ASSET_NAMES := background cat clock gb-font girl text-box thot
+ASSET_PATHS := $(addprefix res/, $(ASSET_NAMES))
+ASSET_RAW := $(addsuffix .aseprite,$(ASSET_PATHS))
+ASSET_PNG := $(addsuffix .png,$(ASSET_PATHS))
+SCALE := 1
 
 $(BIN_NAME) : $(KANTAN_FILES) $(SDL_BUILD_DIR) $(SDL_IMAGE_BUILD_DIR)
 	$(KANTAN_C) $(KANTAN_FILES) -o $(OBJ) -g && \
@@ -41,6 +48,14 @@ dist/index.js : $(KANTAN_FILES)
 	source ~/Downloads/emsdk/emsdk_env.sh && \
 	emcc $(OBJ) -s WASM=1 -s USE_SDL=2 -s USE_SDL_IMAGE=2 -s SDL2_IMAGE_FORMATS='["png"]' $(EMCC_PRELOADS) -o dist/index.js && \
 	rm $(OBJ)
+
+
+$(ASSET_PNG) : $(ASSET_RAW)
+	$(foreach asset, $(ASSET_RAW), $(ASEPRITE) -b $(asset) --scale $(SCALE) --sheet $(addsuffix .png, $(basename $(asset))) ;)
+
+
+.PHONY: assets
+assets : $(ASSET_PNG)
 
 
 .PHONY: deploy

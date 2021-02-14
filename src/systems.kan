@@ -13,7 +13,12 @@ import "components" as _;
 
 let interaction_cooldown: i64 = 500000000;
 
-delegate def UpdateFn(s: *System, ts: f32);
+delegate def UpdateFn(s: *System, ts: f32, camera: *Camera);
+
+type Camera struct {
+    center: math.Vec2f,
+    relative_to: *math.Vec2f
+}
 
 type System struct {
     relevant_components: Signature,
@@ -37,8 +42,8 @@ def (s: *System) entity_idx(e: Entity): isize {
     return -1;
 }
 
-def (s: *System) update(ts: f32) {
-    s.update_fn(s, ts);
+def (s: *System) update(ts: f32, camera: *Camera) {
+    s.update_fn(s, ts, camera);
 }
 
 def (s: *System) free() {
@@ -47,12 +52,10 @@ def (s: *System) free() {
 
 type SpriteRenderSystem struct {
     s: System,
-    r: *sdl.Renderer,
-    relative_to: **math.Vec2f,
-    center: math.Vec2f
+    r: *sdl.Renderer
 }
 
-def sprite_render_system(ecs: *ECS, r: *sdl.Renderer, center: math.Vec2f, relative_to: **math.Vec2f): SpriteRenderSystem {
+def sprite_render_system(ecs: *ECS, r: *sdl.Renderer): SpriteRenderSystem {
     let sig = signature().with(ComponentKind.Transform).with(ComponentKind.Graphics);
     let sys = System {
         relevant_components: sig,
@@ -63,13 +66,11 @@ def sprite_render_system(ecs: *ECS, r: *sdl.Renderer, center: math.Vec2f, relati
 
     return SpriteRenderSystem {
         s: sys,
-        r: r,
-        relative_to: relative_to,
-        center: center
+        r: r
     };
 }
 
-def sprite_render_system_update(s: *System, ts: f32) {
+def sprite_render_system_update(s: *System, ts: f32, cam: *Camera) {
     let rs = s as *SpriteRenderSystem;
 
     for let i: usize = 0; i < s.entities.len; i += 1 {
@@ -78,8 +79,8 @@ def sprite_render_system_update(s: *System, ts: f32) {
         let transform = s.ecs.get_component(e, ComponentKind.Transform) as *p.Transform;
 
         let dest = sdl.Rect {
-            x: (transform.position.x + rs.center.x - (*rs.relative_to).x) as i32,
-            y: (transform.position.y + rs.center.y - (*rs.relative_to).y) as i32,
+            x: (transform.position.x + cam.center.x - (cam.relative_to).x) as i32,
+            y: (transform.position.y + cam.center.y - (cam.relative_to).y) as i32,
             w: graphics.sprite.rect.w,
             h: graphics.sprite.rect.h
         };
@@ -90,12 +91,10 @@ def sprite_render_system_update(s: *System, ts: f32) {
 
 type RepeatedRenderSystem struct {
     s: System,
-    r: *sdl.Renderer,
-    relative_to: **math.Vec2f,
-    center: math.Vec2f
+    r: *sdl.Renderer
 }
 
-def repeated_render_system(ecs: *ECS, r: *sdl.Renderer, center: math.Vec2f, relative_to: **math.Vec2f): RepeatedRenderSystem {
+def repeated_render_system(ecs: *ECS, r: *sdl.Renderer): RepeatedRenderSystem {
     let sig = signature().with(ComponentKind.Transform).with(ComponentKind.RepeatedGraphics);
     let sys = System {
         relevant_components: sig,
@@ -106,13 +105,11 @@ def repeated_render_system(ecs: *ECS, r: *sdl.Renderer, center: math.Vec2f, rela
 
     return RepeatedRenderSystem {
         s: sys,
-        r: r,
-        relative_to: relative_to,
-        center: center
+        r: r
     };
 }
 
-def repeated_render_system_update(s: *System, ts: f32) {
+def repeated_render_system_update(s: *System, ts: f32, cam: *Camera) {
     let rs = s as *RepeatedRenderSystem;
 
     for let i: usize = 0; i < s.entities.len; i += 1 {
@@ -123,8 +120,8 @@ def repeated_render_system_update(s: *System, ts: f32) {
         let sprite = graphics.inner.sprite;
 
         let single_dest = sdl.Rect {
-            x: (transform.position.x + rs.center.x - (*rs.relative_to).x) as i32,
-            y: (transform.position.y + rs.center.y - (*rs.relative_to).y) as i32,
+            x: (transform.position.x + cam.center.x - (cam.relative_to).x) as i32,
+            y: (transform.position.y + cam.center.y - (cam.relative_to).y) as i32,
             w: sprite.rect.w,
             h: sprite.rect.h
         };
@@ -166,7 +163,7 @@ def text_render_system(ecs: *ECS, r: *sdl.Renderer): TextRenderSystem {
     };
 }
 
-def text_render_system_update(s: *System, ts: f32) {
+def text_render_system_update(s: *System, ts: f32, cam: *Camera) {
     let ts = s as *TextRenderSystem;
 
     for let i: usize = 0; i < s.entities.len; i += 1 {
@@ -200,12 +197,10 @@ def text_render_system_update(s: *System, ts: f32) {
 
 type AnimationRenderSystem struct {
     s: System,
-    r: *sdl.Renderer,
-    relative_to: **math.Vec2f,
-    center: math.Vec2f
+    r: *sdl.Renderer
 }
 
-def animation_render_system(ecs: *ECS, r: *sdl.Renderer, center: math.Vec2f, relative_to: **math.Vec2f): AnimationRenderSystem {
+def animation_render_system(ecs: *ECS, r: *sdl.Renderer): AnimationRenderSystem {
     let sig = signature().with(ComponentKind.Transform).with(ComponentKind.AnimatedGraphics);
     let sys = System {
         relevant_components: sig,
@@ -216,13 +211,11 @@ def animation_render_system(ecs: *ECS, r: *sdl.Renderer, center: math.Vec2f, rel
 
     return AnimationRenderSystem {
         s: sys,
-        r: r,
-        relative_to: relative_to,
-        center: center
+        r: r
     };
 }
 
-def animation_render_system_update(s: *System, ts: f32) {
+def animation_render_system_update(s: *System, ts: f32, cam: *Camera) {
     let rs = s as *AnimationRenderSystem;
 
     for let i: usize = 0; i < s.entities.len; i += 1 {
@@ -240,8 +233,8 @@ def animation_render_system_update(s: *System, ts: f32) {
 
         let sprite = graphics.current_animation.current_sprite();
         let dest = sdl.Rect {
-            x: (transform.position.x + rs.center.x - (*rs.relative_to).x) as i32,
-            y: (transform.position.y + rs.center.y - (*rs.relative_to).y) as i32,
+            x: (transform.position.x + cam.center.x - (cam.relative_to).x) as i32,
+            y: (transform.position.y + cam.center.y - (cam.relative_to).y) as i32,
             w: sprite.rect.w,
             h: sprite.rect.h
         };
@@ -254,22 +247,13 @@ type DebugRenderSystem struct {
     s: System,
     renderer: *sdl.Renderer,
     debug: *bool,
-    relative_to: **math.Vec2f,
-    center: math.Vec2f,
     font: text.Font,
     delta_sum: f32,
     frame_count: u32,
     last_fps: u32
 }
 
-def debug_render_system(
-    ecs: *ECS,
-    r: *sdl.Renderer,
-    debug: *bool,
-    font: text.Font,
-    center: math.Vec2f,
-    relative_to: **math.Vec2f
-): DebugRenderSystem {
+def debug_render_system(ecs: *ECS, r: *sdl.Renderer, debug: *bool, font: text.Font): DebugRenderSystem {
     let sig = signature()
         .with(ComponentKind.Transform)
         .with(ComponentKind.Hitbox);
@@ -285,8 +269,6 @@ def debug_render_system(
         s: sys,
         renderer: r,
         debug: debug,
-        relative_to: relative_to,
-        center: center,
         font: font,
         delta_sum: 0.0,
         frame_count: 0,
@@ -294,7 +276,7 @@ def debug_render_system(
     };
 }
 
-def debug_render_system_update(s: *System, ts: f32) {
+def debug_render_system_update(s: *System, ts: f32, cam: *Camera) {
     let ds = s as *DebugRenderSystem;
     if !*ds.debug {
         return;
@@ -329,7 +311,7 @@ def debug_render_system_update(s: *System, ts: f32) {
         ds.frame_count = 0;
     }
 
-    let relative_to = ds.center.add((**ds.relative_to).times(-1.0));
+    let relative_to = cam.center.add((*cam.relative_to).times(-1.0));
     for let j: usize = 0; j < s.entities.len; j += 1 {
         let e = *(s.entities.get_ptr(j) as *Entity);
         let transform = *(s.ecs.get_component(e, ComponentKind.Transform) as *p.Transform);
@@ -372,7 +354,7 @@ def movement_system(ecs: *ECS): MovementSystem {
     };
 }
 
-def movement_system_update(s: *System, ts: f32) {
+def movement_system_update(s: *System, ts: f32, cam: *Camera) {
     let ms = s as *MovementSystem;
     for let j: usize = 0; j < s.entities.len; j += 1 {
         let e = *(s.entities.get_ptr(j) as *Entity);
@@ -410,7 +392,7 @@ def input_system(ecs: *ECS, input: *i.InputState): InputSystem {
     };
 }
 
-def input_system_update(s: *System, ts: f32) {
+def input_system_update(s: *System, ts: f32, cam: *Camera) {
     let ms = s as *InputSystem;
     for let j: usize = 0; j < s.entities.len; j += 1 {
         let e = *(s.entities.get_ptr(j) as *Entity);
@@ -466,7 +448,7 @@ def interaction_system(ecs: *ECS, interaction: *i.InputState): InteractionSystem
     };
 }
 
-def interaction_system_update(s: *System, ts: f32) {
+def interaction_system_update(s: *System, ts: f32, cam: *Camera) {
     let now = sdl.now();
 
     let is = s as *InteractionSystem;
@@ -545,7 +527,7 @@ def collision_system(ecs: *ECS): CollisionSystem {
     };
 }
 
-def collision_system_update(s: *System, ts: f32) {
+def collision_system_update(s: *System, ts: f32, cam: *Camera) {
     let cs = s as *CollisionSystem;
     for let j: usize = 0; j < s.entities.len; j += 1 {
         let e = *(s.entities.get_ptr(j) as *Entity);
