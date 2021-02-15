@@ -1,4 +1,5 @@
 import "sdl";
+import "math";
 import "config";
 
 extern def malloc(size: usize): *void;
@@ -191,4 +192,12 @@ def (g: *AnimatedGraphics) update_based_on_movement(h_vel: f32, v_vel: f32) {
     } else if v_vel < 0.0 {
         g.current_animation = g.animations + 2;
     }
+}
+
+type Camera struct {
+    pos: math.Vec2f
+}
+
+def cam(pos: math.Vec2f): Camera {
+    return Camera { pos: pos };
 }
