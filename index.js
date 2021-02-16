@@ -196,7 +196,7 @@ var Module = typeof Module !== 'undefined' ? Module : {};
     }
   
    }
-   loadPackage({"files": [{"filename": "/res/text-box.png", "start": 0, "end": 154, "audio": 0}, {"filename": "/res/house.png", "start": 154, "end": 1419, "audio": 0}, {"filename": "/res/gb-font.png", "start": 1419, "end": 2276, "audio": 0}, {"filename": "/res/cat.png", "start": 2276, "end": 2914, "audio": 0}, {"filename": "/res/thot.png", "start": 2914, "end": 3604, "audio": 0}, {"filename": "/res/girl.png", "start": 3604, "end": 4868, "audio": 0}, {"filename": "/res/background.png", "start": 4868, "end": 5185, "audio": 0}, {"filename": "/res/clock.png", "start": 5185, "end": 5584, "audio": 0}], "remote_package_size": 5584, "package_uuid": "379540cd-cb8d-4ed4-ae27-dc19bb6cc7f4"});
+   loadPackage({"files": [{"filename": "/res/text-box.png", "start": 0, "end": 154, "audio": 0}, {"filename": "/res/house.png", "start": 154, "end": 1419, "audio": 0}, {"filename": "/res/gb-font.png", "start": 1419, "end": 2276, "audio": 0}, {"filename": "/res/cat.png", "start": 2276, "end": 2914, "audio": 0}, {"filename": "/res/thot.png", "start": 2914, "end": 3604, "audio": 0}, {"filename": "/res/girl.png", "start": 3604, "end": 4868, "audio": 0}, {"filename": "/res/background.png", "start": 4868, "end": 5185, "audio": 0}, {"filename": "/res/clock.png", "start": 5185, "end": 5584, "audio": 0}], "remote_package_size": 5584, "package_uuid": "d60ef7a6-2fae-4295-b9c1-16b94c7df03f"});
   
   })();
   
