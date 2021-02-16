@@ -362,17 +362,17 @@ def main() {
     let start_room = scene.create(&zero);
     // player
     start_room.add_entity()
-        .add_component(ComponentKind.AnimatedGraphics, &player_graphics as *void)
-        .add_component(ComponentKind.Transform, &player_transform as *void)
-        .add_component(ComponentKind.Input, &input as *void)
-        .add_component(ComponentKind.Movement, &player_movement as *void)
-        .add_component(ComponentKind.Hitbox, &player_hitbox as *void)
-        .add_component(ComponentKind.DebugTracking, null);
+        .add_anime(&player_graphics)
+        .add_transform(&player_transform)
+        .add_input(&input)
+        .add_movement(&player_movement)
+        .add_hitbox(&player_hitbox)
+        .add_debug_tracking();
     // wall
     start_room.add_entity()
-        .add_component(ComponentKind.Transform, &wall_transform as *void)
-        .add_component(ComponentKind.RepeatedGraphics, &wall_rep as *void)
-        .add_component(ComponentKind.Hitbox, &wall_hitbox as *void);
+        .add_transform(&wall_transform)
+        .add_repeated(&wall_rep)
+        .add_hitbox(&wall_hitbox);
     // floor
     start_room.add_entity()
         .add_component(ComponentKind.Transform, &floor_transform as *void)
@@ -389,51 +389,51 @@ def main() {
     // player
     outside.add_entity()
         .add_component(ComponentKind.AnimatedGraphics, &player_graphics as *void)
-        .add_component(ComponentKind.Transform, &player_transform as *void)
-        .add_component(ComponentKind.Input, &input as *void)
-        .add_component(ComponentKind.Movement, &player_movement as *void)
-        .add_component(ComponentKind.Hitbox, &player_hitbox as *void)
-        .add_component(ComponentKind.DebugTracking, null);
+        .add_transform(&player_transform)
+        .add_input(&input)
+        .add_movement(&player_movement)
+        .add_hitbox(&player_hitbox)
+        .add_debug_tracking();
     // cat
     outside.add_entity()
-        .add_component(ComponentKind.AnimatedGraphics, &cat_graphics as *void)
-        .add_component(ComponentKind.Transform, &cat_transform as *void)
-        .add_component(ComponentKind.Hitbox, &npc_hitbox as *void)
-        .add_component(ComponentKind.Interaction, &cat_dialog as *void);
+        .add_anime(&cat_graphics)
+        .add_transform(&cat_transform)
+        .add_hitbox(&npc_hitbox)
+        .add_interaction(&cat_dialog);
     outside.add_entity()
-        .add_component(ComponentKind.TextBox, &textbox_component as *void)
-        .add_component(ComponentKind.Interaction, &cat_dialog as *void)
-        .add_component(ComponentKind.StrView, &cat_dialog_text as *void);
+        .add_textbox(&textbox_component)
+        .add_interaction(&cat_dialog)
+        .add_str(&cat_dialog_text);
     // thot
     outside.add_entity()
-        .add_component(ComponentKind.AnimatedGraphics, &thot_graphics as *void)
-        .add_component(ComponentKind.Transform, &thot_transform as *void)
-        .add_component(ComponentKind.Hitbox, &npc_hitbox as *void)
-        .add_component(ComponentKind.Interaction, &thot_dialog as *void);
+        .add_anime(&thot_graphics)
+        .add_transform(&thot_transform)
+        .add_hitbox(&npc_hitbox)
+        .add_interaction(&thot_dialog);
     outside.add_entity()
-        .add_component(ComponentKind.TextBox, &textbox_component as *void)
-        .add_component(ComponentKind.Interaction, &thot_dialog as *void)
-        .add_component(ComponentKind.StrView, &thot_dialog_text as *void);
+        .add_textbox(&textbox_component)
+        .add_interaction(&thot_dialog)
+        .add_str(&thot_dialog_text);
     // grass
     outside.add_entity()
-        .add_component(ComponentKind.Transform, &grass_transform as *void)
-        .add_component(ComponentKind.RepeatedGraphics, &grass_rep as *void);
+        .add_transform(&grass_transform)
+        .add_repeated(&grass_rep);
     // bush
     for let i = 0; i < num_bushes; i += 1 {
         outside.add_entity()
-            .add_component(ComponentKind.Transform, &bushes[i] as *void)
-            .add_component(ComponentKind.RepeatedGraphics, &bush_rep as *void);
+            .add_transform(&bushes[i])
+            .add_repeated(&bush_rep);
     }
     // house
     outside.add_entity()
-        .add_component(ComponentKind.Transform, &clock_transform as *void)
-        .add_component(ComponentKind.RepeatedGraphics, &house_rep as *void)
-        .add_component(ComponentKind.Hitbox, &house_hitbox as *void)
-        .add_component(ComponentKind.Interaction, &house_monologue as *void);
+        .add_transform(&house_transform)
+        .add_repeated(&house_rep)
+        .add_hitbox(&house_hitbox)
+        .add_interaction(&house_monologue);
     outside.add_entity()
-        .add_component(ComponentKind.TextBox, &textbox_component as *void)
-        .add_component(ComponentKind.Interaction, &house_monologue as *void)
-        .add_component(ComponentKind.StrView, &house_monologue_text as *void);
+        .add_textbox(&textbox_component)
+        .add_interaction(&house_monologue)
+        .add_str(&house_monologue_text);
 
     game.scenes[1] = outside;
 

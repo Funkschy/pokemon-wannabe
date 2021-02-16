@@ -1,7 +1,10 @@
 import ":std/vec";
+import ":std/str";
 
 import "ecs";
 import "math";
+import "physics";
+import "graphics" as g;
 import "components" as c;
 
 type ComponentData struct {
@@ -17,6 +20,50 @@ def (e: *EntityData) add_component(kind: c.ComponentKind, data: *void): *EntityD
     let c = ComponentData { kind: kind, data: data };
     e.components.push(&c as *void);
     return e;
+}
+
+def (e: *EntityData) add_transform(data: *physics.Transform): *EntityData {
+    return e.add_component(c.ComponentKind.Transform, data as *void);
+}
+
+def (e: *EntityData) add_hitbox(data: *physics.Hitbox): *EntityData {
+    return e.add_component(c.ComponentKind.Hitbox, data as *void);
+}
+
+def (e: *EntityData) add_graphics(data: *g.Graphics): *EntityData {
+    return e.add_component(c.ComponentKind.Graphics, data as *void);
+}
+
+def (e: *EntityData) add_repeated(data: *g.RepeatedGraphics): *EntityData {
+    return e.add_component(c.ComponentKind.RepeatedGraphics, data as *void);
+}
+
+def (e: *EntityData) add_anime(data: *g.AnimatedGraphics): *EntityData {
+    return e.add_component(c.ComponentKind.AnimatedGraphics, data as *void);
+}
+
+def (e: *EntityData) add_input(data: *c.Input): *EntityData {
+    return e.add_component(c.ComponentKind.Input, data as *void);
+}
+
+def (e: *EntityData) add_movement(data: *physics.Movement): *EntityData {
+    return e.add_component(c.ComponentKind.Movement, data as *void);
+}
+
+def (e: *EntityData) add_interaction(data: *c.Interaction): *EntityData {
+    return e.add_component(c.ComponentKind.Interaction, data as *void);
+}
+
+def (e: *EntityData) add_textbox(data: *c.TextBox): *EntityData {
+    return e.add_component(c.ComponentKind.TextBox, data as *void);
+}
+
+def (e: *EntityData) add_str(data: *str.View): *EntityData {
+    return e.add_component(c.ComponentKind.StrView, data as *void);
+}
+
+def (e: *EntityData) add_debug_tracking(): *EntityData {
+    return e.add_component(c.ComponentKind.DebugTracking, null);
 }
 
 type Scene struct {
