@@ -366,7 +366,8 @@ def main() {
         .add_component(ComponentKind.Transform, &player_transform as *void)
         .add_component(ComponentKind.Input, &input as *void)
         .add_component(ComponentKind.Movement, &player_movement as *void)
-        .add_component(ComponentKind.Hitbox, &player_hitbox as *void);
+        .add_component(ComponentKind.Hitbox, &player_hitbox as *void)
+        .add_component(ComponentKind.DebugTracking, null);
     // wall
     start_room.add_entity()
         .add_component(ComponentKind.Transform, &wall_transform as *void)
@@ -391,7 +392,8 @@ def main() {
         .add_component(ComponentKind.Transform, &player_transform as *void)
         .add_component(ComponentKind.Input, &input as *void)
         .add_component(ComponentKind.Movement, &player_movement as *void)
-        .add_component(ComponentKind.Hitbox, &player_hitbox as *void);
+        .add_component(ComponentKind.Hitbox, &player_hitbox as *void)
+        .add_component(ComponentKind.DebugTracking, null);
     // cat
     outside.add_entity()
         .add_component(ComponentKind.AnimatedGraphics, &cat_graphics as *void)

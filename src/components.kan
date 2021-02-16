@@ -15,7 +15,8 @@ type ComponentKind enum {
     Interaction,
     TextBox,
     StrView,
-    TargetTransform
+    TargetTransform,
+    DebugTracking
 }
 
 type Input struct {

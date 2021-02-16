@@ -26,6 +26,12 @@ type Rect struct {
     h: i32
 }
 
+def rect(x: i32, y: i32, w: i32, h: i32): Rect {
+    return Rect {
+        x: x, y: y, w: w, h: h
+    };
+}
+
 def (r: Rect) is_inside_horizontal(other: Rect): bool {
     return (r.x >= other.x && r.x <= other.x + other.w)
         || (r.x + r.w >= other.x && r.x + r.w <= other.x + other.w);
@@ -94,6 +100,10 @@ def (r: *Renderer) present() {
 
 def (render: *Renderer) set_draw_color(r: i32, g: i32, b: i32, a: i32): i32 {
     return SDL_SetRenderDrawColor(render, r, g, b, a);
+}
+
+def (render: *Renderer) get_draw_color(r: *i32, g: *i32, b: *i32, a: *i32): i32 {
+    return SDL_GetRenderDrawColor(render, r, g, b, a);
 }
 
 def (r: *Renderer) surface_to_texture(s: *Surface): *Texture {
@@ -351,6 +361,7 @@ extern def SDL_PollEvent(e: *Event): i32;
 extern def SDL_RenderClear(r: *Renderer): i32;
 extern def SDL_CreateRenderer(window: *Window, index: i32, flags: i32): *Renderer;
 extern def SDL_SetRenderDrawColor(renderer: *Renderer, r: i32, g: i32, b: i32, a: i32): i32;
+extern def SDL_GetRenderDrawColor(renderer: *Renderer, r: *i32, g: *i32, b: *i32, a: *i32): i32;
 extern def SDL_RenderPresent(renderer: *Renderer);
 extern def SDL_RenderDrawRect(renderer: *Renderer, rect: *Rect): i32;
 extern def SDL_RenderFillRect(renderer: *Renderer, rect: *Rect): i32;

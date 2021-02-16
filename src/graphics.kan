@@ -201,3 +201,17 @@ type Camera struct {
 def cam(pos: math.Vec2f): Camera {
     return Camera { pos: pos };
 }
+
+type Color struct {
+    r: i32, g: i32, b: i32, a: i32
+}
+
+def get_draw_color(renderer: *sdl.Renderer): Color {
+    let c: Color = undefined;
+    renderer.get_draw_color(&c.r, &c.g, &c.b, &c.a);
+    return c;
+}
+
+def set_draw_color(renderer: *sdl.Renderer, c: Color) {
+    renderer.set_draw_color(c.r, c.g, c.b, c.a);
+}

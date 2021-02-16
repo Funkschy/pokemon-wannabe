@@ -271,6 +271,29 @@ def debug_render_system(ecs: *ECS, r: *sdl.Renderer, debug: *bool, font: text.Fo
     };
 }
 
+def render_number(
+    renderer: *sdl.Renderer,
+    font: *text.Font,
+    pos: math.Vec2f,
+    label: str.View,
+    number: i64
+) {
+    let s = label.clone();
+    defer s.free();
+    let num_s = str.i64_to_string(number);
+    s.push(num_s.view());
+
+    let c = g.get_draw_color(renderer);
+    renderer.set_draw_color(255, 255, 255, 255);
+
+    let size = font.get_char('A').rect;
+    let bg_rect = sdl.rect(pos.x as i32, pos.y as i32, size.w * (s.len() as i32), size.h - 1);
+    renderer.fill_rect(&bg_rect);
+
+    g.set_draw_color(renderer, c);
+    text.render_text(renderer, s.view(), font, pos, 0);
+}
+
 def debug_render_system_update(s: *System, ts: f32, cam: *g.Camera) {
     let ds = s as *DebugRenderSystem;
     if !*ds.debug {
@@ -281,11 +304,13 @@ def debug_render_system_update(s: *System, ts: f32, cam: *g.Camera) {
     ds.delta_sum += ts;
     ds.frame_count += 1;
 
-    let fps_s = str.from("FPS: ");
-    defer fps_s.free();
-    let num_s = str.i64_to_string(ds.last_fps as i64);
-    fps_s.push(num_s.view());
-    text.render_text(ds.renderer, fps_s.view(), &ds.font, math.vec2f(2.0, 2.0), 0);
+    render_number(
+        ds.renderer,
+        &ds.font,
+        math.vec2f(2.0, 2.0),
+        str.view_from("FPS: "),
+        ds.last_fps as i64
+    );
 
     if ds.delta_sum >= 1000.0 {
         ds.last_fps = ds.frame_count;
@@ -300,6 +325,23 @@ def debug_render_system_update(s: *System, ts: f32, cam: *g.Camera) {
 
         let abs_rect = hitbox.as_relative_rect(transform, cam.pos);
         ds.renderer.draw_rect(&abs_rect);
+
+        if s.ecs.has_component(e, ComponentKind.DebugTracking) {
+            render_number(
+                ds.renderer,
+                &ds.font,
+                math.vec2f(80.0, 2.0),
+                str.view_from("x: "),
+                transform.position.x as i64
+            );
+            render_number(
+                ds.renderer,
+                &ds.font,
+                math.vec2f(80.0, 12.0),
+                str.view_from("y: "),
+                transform.position.y as i64
+            );
+        }
 
         if !s.ecs.has_component(e, ComponentKind.Interaction) {
             continue;
