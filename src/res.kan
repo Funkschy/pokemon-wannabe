@@ -7,12 +7,13 @@ type Resource enum {
     CatSpriteSheet,
     ThotSpriteSheet,
     BackgroundSpriteSheet,
-    ClockSpriteSheet
+    ClockSpriteSheet,
+    HouseSpriteSheet
 }
 
 // why am i using an unfinished language btw?
-let spritesheet_specs: [5]g.SpriteSheetSpec = undefined;
-let spritesheets: [5]g.SpriteSheet = undefined;
+let spritesheet_specs: [6]g.SpriteSheetSpec = undefined;
+let spritesheets: [6]g.SpriteSheet = undefined;
 
 def init_spritesheet_specs() {
     let i = -1;
@@ -21,6 +22,7 @@ def init_spritesheet_specs() {
     spritesheet_specs[i += 1] = g.spritesheet_spec(16, 16, "res/thot.png");
     spritesheet_specs[i += 1] = g.spritesheet_spec(8, 8, "res/background.png");
     spritesheet_specs[i += 1] = g.spritesheet_spec(16, 32, "res/clock.png");
+    spritesheet_specs[i += 1] = g.spritesheet_spec(80, 64, "res/house.png");
 }
 
 def load_spritesheets(renderer: *sdl.Renderer) {

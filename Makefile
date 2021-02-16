@@ -14,13 +14,13 @@ KANTAN_C ?= /usr/local/bin/kantan
 KANTAN_FILES = $(shell find src -name '*.kan')
 OBJ = game.o
 
-ASSET_NAMES := background cat clock gb-font girl text-box thot
+ASSET_NAMES := background cat clock gb-font girl text-box thot house
 ASSET_PATHS := $(addprefix res/, $(ASSET_NAMES))
 ASSET_RAW := $(addsuffix .aseprite,$(ASSET_PATHS))
 ASSET_PNG := $(addsuffix .png,$(ASSET_PATHS))
 SCALE := 1
 
-$(BIN_NAME) : $(KANTAN_FILES) $(SDL_BUILD_DIR) $(SDL_IMAGE_BUILD_DIR)
+$(BIN_NAME) : $(KANTAN_FILES) $(SDL_BUILD_DIR) $(SDL_IMAGE_BUILD_DIR) $(ASSET_PNG)
 	$(KANTAN_C) $(KANTAN_FILES) -o $(OBJ) -g && \
 	LIBS=$$($(SDL_BUILD_DIR)/sdl2-config --static-libs) && \
 	gcc $(OBJ) $$LIBS -lm -lSDL -L$(SDL_IMAGE_BUILD_DIR)/lib -lSDL2_image -o $(BIN_NAME)

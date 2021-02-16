@@ -290,7 +290,6 @@ def main() {
         reps_h: 1
     };
 
-
     // --- clock ---
     let clock_sprite = res.get(res.Resource.ClockSpriteSheet).get(0, 0);
     let clock_graphics = g.Graphics {
@@ -300,6 +299,33 @@ def main() {
     let clock_initial_pos = math.vec2f(60.0, -center.y);
     let clock_transform = p.Transform { position: clock_initial_pos };
     let clock_hitbox = p.hitbox (0, 16, 16, 16);
+
+    // --- house ---
+    let house_sprite = res.get(res.Resource.HouseSpriteSheet).get(0, 0);
+    let house_graphics = g.Graphics {
+        sprite: &house_sprite,
+        flip: sdl.RendererFlip.None
+    };
+    // see bush
+    let house_rep = g.RepeatedGraphics {
+        inner: house_graphics,
+        reps_w: 1,
+        reps_h: 1
+    };
+    let house_initial_pos = math.vec2f(60.0, -center.y);
+    let house_transform = p.Transform { position: house_initial_pos };
+    let house_hitbox = p.hitbox (0, 0, 77, 53);
+    let house_monologue = Interaction {
+        hitbox: p.hitbox (0, 50, 77, 20),
+        chars_shown: 0,
+        last_state: 0,
+        current_state: 0
+    };
+
+    let house_monologue_text = str.view_from(
+        "It almost feels as if the developer was too lazy to finish the sprite"
+    );
+
 
     game.ecs = create_ecs();
     defer game.ecs.free();
@@ -396,6 +422,16 @@ def main() {
             .add_component(ComponentKind.Transform, &bushes[i] as *void)
             .add_component(ComponentKind.RepeatedGraphics, &bush_rep as *void);
     }
+    // house
+    outside.add_entity()
+        .add_component(ComponentKind.Transform, &clock_transform as *void)
+        .add_component(ComponentKind.RepeatedGraphics, &house_rep as *void)
+        .add_component(ComponentKind.Hitbox, &house_hitbox as *void)
+        .add_component(ComponentKind.Interaction, &house_monologue as *void);
+    outside.add_entity()
+        .add_component(ComponentKind.TextBox, &textbox_component as *void)
+        .add_component(ComponentKind.Interaction, &house_monologue as *void)
+        .add_component(ComponentKind.StrView, &house_monologue_text as *void);
 
     game.scenes[1] = outside;
 
