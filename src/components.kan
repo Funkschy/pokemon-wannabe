@@ -15,7 +15,6 @@ type ComponentKind enum {
     Interaction,
     TextBox,
     StrView,
-    TargetTransform,
     DebugTracking
 }
 
