@@ -60,6 +60,7 @@ assets : $(ASSET_PNG)
 
 .PHONY: deploy
 deploy : dist/index.js
+	cp index.html dist/
 	git add dist
 	git commit -m "update dist"
 	git subtree push --prefix dist origin gh-pages

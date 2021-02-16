@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    </head>
+
+    <body>
+
+        <!-- Create the canvas that the Kantan code will draw into -->
+        <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+
+        <!-- Allow the Kantan to access the canvas element -->
+        <script type='text/javascript'>
+            var Module = {
+                canvas: (function() { return document.getElementById('canvas'); })()
+            };
+        </script>
+
+        <h3>Controls</h3>
+        <table border="border">
+            <thead>
+                <th>Key</th>
+                <th>Action</th>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><kbd>w</kbd> or <kbd>&uparrow;</kbd></td>
+                    <td>move up</td>
+                </tr>
+                <tr>
+                    <td><kbd>a</kbd> or <kbd>&leftarrow;</kbd></td>
+                    <td>move left</td>
+                </tr>
+                <tr>
+                    <td><kbd>s</kbd> or <kbd>&downarrow;</kbd></td>
+                    <td>move down</td>
+                </tr>
+                <tr>
+                    <td><kbd>d</kbd> or <kbd>&rightarrow;</kbd></td>
+                    <td>move right</td>
+                </tr>
+                <tr>
+                    <td><kbd>space</kbd></td>
+                    <td>move right</td>
+                </tr>
+                <tr>
+                    <td><kbd>g</kbd></td>
+                    <td>enable debug mode</td>
+                </tr>
+                <tr>
+                    <td><kbd>p</kbd></td>
+                    <td>switch between inside and outside</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <script src="index.js"></script>
+    </body>
+</html>
