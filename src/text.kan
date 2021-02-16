@@ -20,7 +20,7 @@ def (f: *Font) free() {
 
 def (f: *Font) get_char(c: i8): g.Sprite {
     let upper = c - 32 * ((c >= 'a' && c <= 'z') as i8);
-    let idx = (upper - (',' + 1)) as i32;
+    let idx = (upper - ',' + 1) as i32;
 
     return f.spritesheet.get(idx % chars_per_row, idx / chars_per_row);
 }
@@ -92,8 +92,13 @@ def render_text(renderer: *sdl.Renderer, text: str.View, font: *Font, pos: math.
     }
 }
 
-def (tb: *TextBox) render_box(renderer: *sdl.Renderer, size: u32, side_dist: i32, total_width: i32) {
-    let start_height = config.height() as i32 - element_height;
+def (tb: *TextBox) render_box(
+    renderer: *sdl.Renderer,
+    size: u32,
+    side_dist: i32,
+    start_height: i32,
+    total_width: i32
+) {
     let dest = sdl.Rect {
         x: side_dist,
         y: start_height,
@@ -117,14 +122,16 @@ def (tb: *TextBox) render(renderer: *sdl.Renderer, text: str.View, size: u32): u
     let char_height = size;
 
     let screen_side_dist = 8;
+    let screen_bottom_dist = 8;
+
     let total_width = config.width() - 2 * screen_side_dist;
     let available_rows = element_height / char_height;
 
     let border_side_dist = 2;
     let line_dist = 1;
 
-    let start_height = config.height() as i32 - element_height;
-    tb.render_box(renderer, size, screen_side_dist, total_width);
+    let start_height = config.height() as i32 - element_height - screen_bottom_dist;
+    tb.render_box(renderer, size, screen_side_dist, start_height, total_width);
 
     let dest = sdl.Rect {
         x: screen_side_dist,
