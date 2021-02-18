@@ -14,7 +14,7 @@ KANTAN_C ?= /usr/local/bin/kantan
 KANTAN_FILES = $(shell find src -name '*.kan')
 OBJ = game.o
 
-ASSET_NAMES := background cat clock gb-font girl text-box thot house
+ASSET_NAMES := background cat clock gb-font girl text-box thot house grandma
 ASSET_PATHS := $(addprefix res/, $(ASSET_NAMES))
 ASSET_RAW := $(addsuffix .aseprite,$(ASSET_PATHS))
 ASSET_PNG := $(addsuffix .png,$(ASSET_PATHS))

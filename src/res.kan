@@ -1,25 +1,36 @@
-import "io";
+import ":std/io";
+import ":std/dbg";
+
 import "sdl";
+import "util";
 import "graphics" as g;
 
 type Resource enum {
     GirlSpriteSheet,
     CatSpriteSheet,
     ThotSpriteSheet,
+    GrandmaSpriteSheet,
     BackgroundSpriteSheet,
     ClockSpriteSheet,
     HouseSpriteSheet
 }
 
 // why am i using an unfinished language btw?
-let spritesheet_specs: [6]g.SpriteSheetSpec = undefined;
-let spritesheets: [6]g.SpriteSheet = undefined;
+let spritesheet_specs: [7]g.SpriteSheetSpec = undefined;
+let spritesheets: [7]g.SpriteSheet = undefined;
 
 def init_spritesheet_specs() {
+    let specs_array_len = util.sizeof_val(&spritesheet_specs) / sizeof g.SpriteSheetSpec;
+    let sheet_array_len = util.sizeof_val(&spritesheets) / sizeof g.SpriteSheet;
+
+    dbg.assert(specs_array_len == sheet_array_len, "you forgot to change the arrays again");
+    dbg.assert(specs_array_len == Resource.len as usize, "you forgot to change the arrays again");
+
     let i = -1;
     spritesheet_specs[i += 1] = g.spritesheet_spec(16, 16, "res/girl.png");
     spritesheet_specs[i += 1] = g.spritesheet_spec(16, 16, "res/cat.png");
     spritesheet_specs[i += 1] = g.spritesheet_spec(16, 16, "res/thot.png");
+    spritesheet_specs[i += 1] = g.spritesheet_spec(16, 16, "res/grandma.png");
     spritesheet_specs[i += 1] = g.spritesheet_spec(8, 8, "res/background.png");
     spritesheet_specs[i += 1] = g.spritesheet_spec(16, 32, "res/clock.png");
     spritesheet_specs[i += 1] = g.spritesheet_spec(80, 64, "res/house.png");

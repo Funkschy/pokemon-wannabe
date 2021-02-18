@@ -201,6 +201,23 @@ def main() {
         "Follow me on twitch, Instagram, Snapchat, Twitter, Youtube\nand onlyfans"
     );
 
+    // --- grandma ---
+    let grandma_anim = g.create_animation(res.get(res.Resource.GrandmaSpriteSheet), 1, 0);
+    defer grandma_anim.free();
+    let grandma_graphics = g.simple_anime(&grandma_anim, 1);
+    let grandma_transform = p.Transform { position: math.vec2f(-50.0, 40.0) };
+
+    let grandma_dialog = Interaction {
+        hitbox: p.hitbox (-8, -8, 32, 32),
+        chars_shown: 0,
+        last_state: 0,
+        current_state: 0
+    };
+
+    let grandma_dialog_text = str.view_from(
+        "You should go outside for once. Just press p on your keyboard\nWhatever that means"
+    );
+
     // --- wall ---
     let background_spritesheet = res.get(res.Resource.BackgroundSpriteSheet);
     let background_tile_size = 8;
@@ -382,6 +399,16 @@ def main() {
         .add_component(ComponentKind.Transform, &clock_transform as *void)
         .add_component(ComponentKind.Graphics, &clock_graphics as *void)
         .add_component(ComponentKind.Hitbox, &clock_hitbox as *void);
+    // grandma
+    start_room.add_entity()
+        .add_anime(&grandma_graphics)
+        .add_transform(&grandma_transform)
+        .add_hitbox(&npc_hitbox)
+        .add_interaction(&grandma_dialog);
+    start_room.add_entity()
+        .add_textbox(&textbox_component)
+        .add_interaction(&grandma_dialog)
+        .add_str(&grandma_dialog_text);
 
     game.scenes[0] = start_room;
 

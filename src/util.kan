@@ -1,0 +1,3 @@
+def [T] sizeof_val(v: *T): usize {
+    return sizeof T;
+}
