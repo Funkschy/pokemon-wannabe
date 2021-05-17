@@ -20,7 +20,7 @@ make
 
 ```
 
-Go into src/main.kan and make sure that `emscripten_set_main_loop_arg(&mainloop, &game, -1, 1)` is not commented out.
+Go to the very end of src/main.kan and make sure that `emscripten_set_main_loop_arg(&mainloop, &game, -1, 1)` is not commented out.
 and comment out the `while running {...}` loop
 #### For the browser version
 ```

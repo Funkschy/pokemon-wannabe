@@ -1,6 +1,7 @@
 
 extern def atan2f(y: f32, x: f32): f32;
 extern def sqrtf(x: f32): f32;
+extern def floorf(x: f32): f32;
 
 def [T] min(a: T, b: T): T {
     if a < b {
@@ -9,11 +10,15 @@ def [T] min(a: T, b: T): T {
     return b;
 }
 
-def max(a: i32, b: i32): i32 {
+def [T] max(a: T, b: T): T {
     if a > b {
         return a;
     }
     return b;
+}
+
+def [T] lerp(a: T, b: T, w: T): T {
+    return (b - a) * w + a;
 }
 
 type Rad struct {
@@ -56,6 +61,12 @@ def (v: Vec2f) dot(other: Vec2f): f32 {
 def (v: Vec2f) add(other: Vec2f): Vec2f {
     v.x += other.x;
     v.y += other.y;
+    return v;
+}
+
+def (v: Vec2f) sub(other: Vec2f): Vec2f {
+    v.x -= other.x;
+    v.y -= other.y;
     return v;
 }
 

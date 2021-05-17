@@ -27,7 +27,12 @@ type Game struct {
     current_scene: *scene.Scene,
     last: i64,
     input: i.InputState,
-    ecs: ECS
+    ecs: ECS,
+
+    // this is a very hacky solution, that circumvents the ecs, which is needed because
+    // pressing 'p' to switch rooms also circumvents the ecs. That will be fixed by the simple
+    // introduction of doors, but right now this is an easy workaround
+    interacting: *bool
 }
 
 let center: math.Vec2f = undefined;
@@ -48,7 +53,7 @@ def mainloop(game: *Game): bool {
             continue;
         }
 
-        if e.common.kind == sdl.EventKind.KeyDown && e.key_event.keysym.sym == 'p' {
+        if e.common.kind == sdl.EventKind.KeyDown && e.key_event.keysym.sym == 'p' && !*game.interacting {
             let current_scene_index = (game.current_scene - &game.scenes[0]) / sizeof scene.Scene;
             game.current_scene = &game.scenes[(current_scene_index + 1) % 2];
             game.current_scene.load(&game.ecs);
@@ -126,7 +131,7 @@ def main() {
     let player_animations = arena.typed(sizeof g.Animation);
     defer player_animations.free();
 
-    let player_spritesheet = res.get(res.Resource.GirlSpriteSheet);
+    let player_spritesheet = res.get(res.Resource.PlayerSpriteSheet);
     let player_idle = g.create_animation(player_spritesheet, 4, 0);
     defer player_idle.free();
     let player_run_down = g.create_animation(player_spritesheet, 6, 4);
@@ -152,6 +157,7 @@ def main() {
         last_interact: 0,
         interacting: false
     };
+    game.interacting = &input.interacting;
 
     let player_movement = p.Movement {
         velocity: math.zero_vec2f(),
@@ -184,20 +190,20 @@ def main() {
     let cat_initial_pos = math.vec2f(-30.0, -30.0);
     let cat_transform = p.Transform { position: cat_initial_pos };
 
-    // --- thot ---
-    let thot_anim = g.create_animation(res.get(res.Resource.ThotSpriteSheet), 8, 0);
-    defer thot_anim.free();
-    let thot_graphics = g.simple_anime(&thot_anim, 1);
-    let thot_transform = p.Transform { position: math.vec2f(50.0, 40.0) };
+    // --- girl ---
+    let girl_anim = g.create_animation(res.get(res.Resource.GirlSpriteSheet), 8, 0);
+    defer girl_anim.free();
+    let girl_graphics = g.simple_anime(&girl_anim, 1);
+    let girl_transform = p.Transform { position: math.vec2f(50.0, 40.0) };
 
-    let thot_dialog = Interaction {
+    let girl_dialog = Interaction {
         hitbox: p.hitbox (-8, -8, 32, 32),
         chars_shown: 0,
         last_state: 0,
         current_state: 0
     };
 
-    let thot_dialog_text = str.view_from(
+    let girl_dialog_text = str.view_from(
         "Follow me on twitch, Instagram, Snapchat, Twitter, Youtube\nand onlyfans"
     );
 
@@ -431,16 +437,16 @@ def main() {
         .add_textbox(&textbox_component)
         .add_interaction(&cat_dialog)
         .add_str(&cat_dialog_text);
-    // thot
+    // girl
     outside.add_entity()
-        .add_anime(&thot_graphics)
-        .add_transform(&thot_transform)
+        .add_anime(&girl_graphics)
+        .add_transform(&girl_transform)
         .add_hitbox(&npc_hitbox)
-        .add_interaction(&thot_dialog);
+        .add_interaction(&girl_dialog);
     outside.add_entity()
         .add_textbox(&textbox_component)
-        .add_interaction(&thot_dialog)
-        .add_str(&thot_dialog_text);
+        .add_interaction(&girl_dialog)
+        .add_str(&girl_dialog_text);
     // grass
     outside.add_entity()
         .add_transform(&grass_transform)
@@ -472,10 +478,12 @@ def main() {
     defer game.input.free();
 
 
+    // comment out this loop for web
     let running = true;
     while running {
         running = mainloop(&game);
     }
 
+    // comment out this line for native
     // emscripten_set_main_loop_arg(&mainloop, &game, -1, 1);
 }

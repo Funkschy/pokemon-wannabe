@@ -6,9 +6,9 @@ import "util";
 import "graphics" as g;
 
 type Resource enum {
-    GirlSpriteSheet,
+    PlayerSpriteSheet,
     CatSpriteSheet,
-    ThotSpriteSheet,
+    GirlSpriteSheet,
     GrandmaSpriteSheet,
     BackgroundSpriteSheet,
     ClockSpriteSheet,
@@ -27,9 +27,9 @@ def init_spritesheet_specs() {
     dbg.assert(specs_array_len == Resource.len as usize, "you forgot to change the arrays again");
 
     let i = -1;
-    spritesheet_specs[i += 1] = g.spritesheet_spec(16, 16, "res/girl.png");
+    spritesheet_specs[i += 1] = g.spritesheet_spec(16, 16, "res/player.png");
     spritesheet_specs[i += 1] = g.spritesheet_spec(16, 16, "res/cat.png");
-    spritesheet_specs[i += 1] = g.spritesheet_spec(16, 16, "res/thot.png");
+    spritesheet_specs[i += 1] = g.spritesheet_spec(16, 16, "res/girl.png");
     spritesheet_specs[i += 1] = g.spritesheet_spec(16, 16, "res/grandma.png");
     spritesheet_specs[i += 1] = g.spritesheet_spec(8, 8, "res/background.png");
     spritesheet_specs[i += 1] = g.spritesheet_spec(16, 32, "res/clock.png");
